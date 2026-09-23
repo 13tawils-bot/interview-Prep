@@ -1,0 +1,8 @@
+# Your resume, JDs, and mock transcripts stay local.
+prep_data/
+__pycache__/
+*.egg-info/
+.venv/
+.pytest_cache/
+build/
+dist/
