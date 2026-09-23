@@ -158,3 +158,9 @@ def test_scorecard_schema_is_structured_output_compatible():
     schema = transform_schema(Scorecard)
     assert schema["additionalProperties"] is False
     assert set(schema["required"]) == set(Scorecard.model_fields)
+
+
+def test_default_resume(tmp_path):
+    assert store.load_default_resume(root=tmp_path) is None
+    store.save_default_resume("CV text", root=tmp_path)
+    assert store.load_default_resume(root=tmp_path) == "CV text"

@@ -35,7 +35,7 @@ def _out(text: str) -> None:
 def _profile(args) -> store.Profile:
     slug = getattr(args, "profile", None) or store.get_active()
     if not slug:
-        raise SystemExit("No profile yet. Start with: prep init --company ... --role ... --jd ... --resume ...")
+        raise SystemExit("No profile yet. Start with: prep init --company ... --role ... --jd ...")
     profile = store.Profile(slug)
     if not profile.exists:
         raise SystemExit(f"Profile '{slug}' not found. See: prep list")
@@ -46,11 +46,17 @@ def _profile(args) -> store.Profile:
 
 
 def cmd_init(args) -> None:
+    if args.resume:
+        resume = read_text_input(args.resume)
+    else:
+        resume = store.load_default_resume()
+        if not resume:
+            raise SystemExit("No --resume given and no saved resume. Run: prep resume <file>")
     data = {
         "company": args.company,
         "role": args.role,
         "job_description": read_text_input(args.jd),
-        "resume": read_text_input(args.resume),
+        "resume": resume,
         "notes": read_text_input(args.notes) if args.notes else "",
     }
     slug = args.name or store.slugify(args.company, args.role)
@@ -59,6 +65,17 @@ def cmd_init(args) -> None:
     store.set_active(slug)
     console.print(f"[green]Saved profile[/] [bold]{slug}[/] and made it active.")
     console.print("Next: [bold]prep research[/] → [bold]prep brief[/] → [bold]prep mock[/]")
+
+
+def cmd_resume(args) -> None:
+    if args.file:
+        path = store.save_default_resume(read_text_input(args.file))
+        console.print(f"[green]Saved your resume[/] to {path}. `prep init` will use it by default.")
+        return
+    text = store.load_default_resume()
+    if not text:
+        raise SystemExit("No saved resume yet. Run: prep resume <file>")
+    console.print(text)
 
 
 def cmd_list(args) -> None:
@@ -252,10 +269,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--company", required=True)
     p.add_argument("--role", required=True, help='e.g. "Senior Manager, Strategic Partnerships"')
     p.add_argument("--jd", required=True, help="job description file (.txt/.md/.pdf) or - for stdin")
-    p.add_argument("--resume", required=True, help="resume file (.txt/.md/.pdf)")
+    p.add_argument("--resume", help="resume file (.txt/.md/.pdf); defaults to the one saved with `prep resume`")
     p.add_argument("--notes", help="optional file with extra context: deal numbers, stories, interview format")
     p.add_argument("--name", help="custom profile slug")
     p.set_defaults(func=cmd_init)
+
+    p = sub.add_parser("resume", help="save your resume once so every profile can use it")
+    p.add_argument("file", nargs="?", help="resume file (.txt/.md/.pdf); omit to print the saved one")
+    p.set_defaults(func=cmd_resume)
 
     sub.add_parser("list", help="list profiles").set_defaults(func=cmd_list)
 

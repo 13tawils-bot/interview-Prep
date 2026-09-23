@@ -16,9 +16,12 @@ export ANTHROPIC_API_KEY=sk-ant-...     # or: ant auth login
 ## Workflow
 
 ```bash
-# 1. Point it at a role (resume/JD can be .txt, .md, or .pdf)
+# 0. Save your resume once (.txt, .md, or .pdf); every profile reuses it
+prep resume ~/Documents/cv.pdf
+
+# 1. Point it at a role (the JD can be .txt, .md, .pdf, or - for stdin)
 prep init --company "Stripe" --role "Partnerships Manager, Platforms" \
-          --jd jd.txt --resume resume.pdf --notes examples/notes_template.md
+          --jd jd.txt --notes examples/notes_template.md
 
 # 2. Research the company on the web → prep_data/<profile>/dossier.md
 prep research

@@ -2,6 +2,7 @@
 
     $PREP_HOME/                      (default ./prep_data)
       active                         slug of the active profile
+      resume.txt                     default resume, used when init has no --resume
       <slug>/profile.json            company, role, JD, resume text, notes
       <slug>/dossier.md              company research
       <slug>/brief.md                prep brief
@@ -94,3 +95,19 @@ def list_profiles(root: Path | None = None) -> list[str]:
     if not root.exists():
         return []
     return sorted(p.parent.name for p in root.glob("*/profile.json"))
+
+
+def default_resume_path(root: Path | None = None) -> Path:
+    return (root or home()) / "resume.txt"
+
+
+def save_default_resume(text: str, root: Path | None = None) -> Path:
+    path = default_resume_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    return path
+
+
+def load_default_resume(root: Path | None = None) -> str | None:
+    path = default_resume_path(root)
+    return path.read_text() if path.exists() else None
