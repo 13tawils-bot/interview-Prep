@@ -53,6 +53,14 @@ DEFAULT_TITLES = [
     "Enterprise Account Executive",
     "Senior Account Executive",
     "Mid-Market Account Executive",
+    "Account Executive",
+    "Sales Director",
+    "Director of Sales",
+    "Business Development Director",
+    "Country Manager",
+    "General Manager",
+    "Head of Growth",
+    "Head of Partnerships",
 ]
 DEFAULT_LOCATIONS = ["United Kingdom", "United Arab Emirates", "Saudi Arabia"]
 
