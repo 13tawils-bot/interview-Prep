@@ -45,6 +45,29 @@ During a mock, press Enter on an empty line to submit an answer. Commands:
 `/hint` (one line of coaching, then back in character), `/skip`, `/end` (finish and
 get scored), `/quit` (discard the session).
 
+### Finding roles: `prep jobs`
+
+`prep jobs` searches [Active Jobs DB](https://rapidapi.com/fantastic-jobs-fantastic-jobs-default/api/active-jobs-db)
+(Fantastic.jobs, via RapidAPI), which indexes jobs from company career sites and hiring systems and
+adds company data (industry, headcount, funding) and AI-extracted fields (experience level, work
+arrangement, requirements).
+
+```bash
+export RAPIDAPI_KEY=...        # not needed in a Claude Code cloud env with a RapidAPI credential
+prep jobs search               # one request: UK sales/GTM roles from the last 7 days
+prep jobs search --titles "Account Executive,Founding GTM" --locations "United Kingdom,Ireland" --time-frame 24h
+prep jobs score                # Claude rates each role against your saved CV: strong / stretch / skip
+prep jobs list                 # best fit first; --fit strong, --status applied, --all
+prep jobs show <id>            # details, requirements, apply link
+prep jobs status <id> applied  # track: new, shortlisted, applied, interviewing, offer, rejected, skipped
+prep jobs prep <id>            # turn a role into a prep profile, then: prep research / brief / mock
+```
+
+Every search is a single API request and results are saved to `prep_data/jobs/jobs.json`, so
+listing, scoring and tracking cost nothing. Recruitment agencies, non-tech companies and
+out-of-scope titles (SDR, ops, engineering, internships) are filtered out locally. The free plan
+allows 25 requests and 250 jobs a month; the remaining quota is shown after each search.
+
 ### Mock modes
 
 | Mode | What happens |

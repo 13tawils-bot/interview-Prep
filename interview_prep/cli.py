@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.table import Table
 
+from . import jobs as jobsmod
 from . import store
 from .documents import read_text_input
 from .interview import run_mock, score_mock
@@ -21,6 +22,7 @@ from .prompts import (
     PERSONAS,
     RESEARCH_INSTRUCTIONS,
     context_system_blocks,
+    job_fit_system,
 )
 from .scoring import dimension_averages, render_markdown, weakest_dimensions
 
@@ -254,6 +256,155 @@ def cmd_show(args) -> None:
     console.print(Markdown(text))
 
 
+# --- jobs -------------------------------------------------------------------
+
+FIT_STYLE = {"strong": "[green]strong[/]", "stretch": "[yellow]stretch[/]", "skip": "[dim]skip[/]"}
+
+
+def _split(value: str | None, default: list[str]) -> list[str]:
+    return [v.strip() for v in value.split(",") if v.strip()] if value else default
+
+
+def cmd_jobs_search(args) -> None:
+    titles = _split(args.titles, jobsmod.DEFAULT_TITLES)
+    locations = _split(args.locations, jobsmod.DEFAULT_LOCATIONS)
+    console.print(f"[dim]Titles: {', '.join(titles)}\nLocations: {', '.join(locations)} · last {args.time_frame}[/]")
+    with console.status("Searching Active Jobs DB…"):
+        result = jobsmod.search(titles, locations, args.time_frame, args.limit, args.offset)
+    report = jobsmod.JobStore().merge(result.jobs)
+
+    console.print(
+        f"Fetched {len(result.jobs)} · [green]{len(report.added)} new[/] · "
+        f"{report.duplicates} already saved · "
+        + (", ".join(f"{n} dropped ({why})" for why, n in report.dropped.items()) or "0 dropped")
+    )
+    q = result.quota
+    if q:
+        console.print(
+            f"[dim]Quota left this month: {q.get('requests_remaining', '?')}/{q.get('requests_limit', '?')} "
+            f"requests, {q.get('jobs_remaining', '?')}/{q.get('jobs_limit', '?')} jobs[/]"
+        )
+    if report.added:
+        _jobs_table(sorted(report.added, key=lambda j: -j["quick_score"]), title="New roles")
+        console.print("Next: [bold]prep jobs score[/] to rate them against your CV.")
+
+
+def _jobs_table(rows: list[dict], title: str) -> None:
+    table = Table(title=title, show_lines=False)
+    for col in ("ID", "Fit", "Role", "Company", "Where", "Posted", "Status"):
+        table.add_column(col, overflow="fold")
+    for j in rows:
+        company = j["organization"] + (" [magenta]AI[/]" if j.get("is_ai") else "")
+        where = ", ".join(loc.split(",")[0] for loc in j.get("locations", [])[:2])
+        if j.get("work_arrangement"):
+            where += f" ({j['work_arrangement']})"
+        table.add_row(
+            j["id"],
+            FIT_STYLE.get(j.get("fit"), f"[dim]~{j.get('quick_score', 0)}[/]"),
+            j["title"],
+            company,
+            where,
+            j.get("date_posted", ""),
+            j.get("status", "new"),
+        )
+    console.print(table)
+
+
+def cmd_jobs_list(args) -> None:
+    rows = jobsmod.ranked(jobsmod.JobStore().load())
+    if args.fit:
+        rows = [j for j in rows if j.get("fit") == args.fit]
+    if args.status:
+        rows = [j for j in rows if j.get("status") == args.status]
+    elif not args.all:
+        rows = [
+            j
+            for j in rows
+            if j.get("in_scope", True) and j.get("status") not in ("skipped", "rejected") and j.get("fit") != "skip"
+        ]
+    if not rows:
+        console.print("No saved jobs match. Run: prep jobs search")
+        return
+    _jobs_table(rows[: args.limit], title=f"Saved roles ({len(rows)})")
+
+
+def cmd_jobs_score(args) -> None:
+    resume = store.load_default_resume()
+    if not resume:
+        raise SystemExit("No saved resume. Run: prep resume <file>")
+    js = jobsmod.JobStore()
+    todo = [
+        j for j in jobsmod.ranked(js.load()) if j.get("in_scope", True) and (args.rescore or not j.get("fit"))
+    ][: args.max]
+    if not todo:
+        console.print("Everything is already scored. Use --rescore to redo it.")
+        return
+    coach = Coach()
+    system = job_fit_system(resume)
+    scored = 0
+    for i in range(0, len(todo), 10):
+        batch = todo[i : i + 10]
+        with console.status(f"Scoring roles {i + 1}-{i + len(batch)} of {len(todo)} against your CV…"):
+            results = coach.score_jobs(system, "\n\n".join(jobsmod.job_for_scoring(j) for j in batch))
+        ids = {j["id"] for j in batch}
+        for r in results:
+            if r.job_id in ids:
+                js.update(r.job_id, fit=r.fit, fit_reason=r.reason, fit_gaps=r.gaps)
+                scored += 1
+    console.print(f"Scored {scored} roles.")
+    cmd_jobs_list(argparse.Namespace(fit=None, status=None, all=False, limit=30))
+
+
+def cmd_jobs_show(args) -> None:
+    j = jobsmod.JobStore().get(args.id)
+    funding = f"${j['funding_total']:,.0f} raised" if j.get("funding_total") else "funding unknown"
+    lines = [
+        f"# {j['title']} · {j['organization']}",
+        "",
+        f"**Fit:** {j.get('fit') or 'not scored'}" + (f" · {j['fit_reason']}" if j.get("fit_reason") else ""),
+        f"**Gap to address:** {j['fit_gaps']}" if j.get("fit_gaps") else "",
+        f"**Status:** {j.get('status', 'new')} · **Posted:** {j.get('date_posted')}",
+        f"**Where:** {', '.join(j.get('locations', []))} ({j.get('work_arrangement') or 'n/a'})",
+        f"**Company:** {j.get('industry') or 'n/a'} · {j.get('headcount') or '?'} staff · {funding}",
+        f"**Experience asked:** {j.get('experience_level') or 'n/a'} years"
+        + (f" · **Salary:** {j['salary']}" if j.get("salary") else ""),
+        f"**Apply:** {j.get('url')}",
+        "",
+        f"**Requirements:** {j.get('requirements') or 'n/a'}",
+        "",
+        f"**Responsibilities:** {j.get('responsibilities') or 'n/a'}",
+    ]
+    console.print(Markdown("\n\n".join(line for line in lines if line)))
+
+
+def cmd_jobs_status(args) -> None:
+    jobsmod.JobStore().update(args.id, status=args.status)
+    console.print(f"Marked {args.id} as [bold]{args.status}[/].")
+
+
+def cmd_jobs_prep(args) -> None:
+    js = jobsmod.JobStore()
+    j = js.get(args.id)
+    resume = store.load_default_resume()
+    if not resume:
+        raise SystemExit("No saved resume. Run: prep resume <file>")
+    slug = store.slugify(j["organization"], j["title"])
+    store.Profile(slug).save(
+        {
+            "company": j["organization"],
+            "role": j["title"],
+            "job_description": jobsmod.job_as_jd(j),
+            "resume": resume,
+            "notes": "",
+        }
+    )
+    store.set_active(slug)
+    if j.get("status") in (None, "new"):
+        js.update(args.id, status="shortlisted")
+    console.print(f"[green]Created profile[/] [bold]{slug}[/] from this job and made it active.")
+    console.print("Next: [bold]prep research[/] → [bold]prep brief[/] → [bold]prep mock[/]")
+
+
 # --- entry point ------------------------------------------------------------
 
 
@@ -299,6 +450,42 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("progress", help="scores over time and what to work on").set_defaults(func=cmd_progress)
 
+    jobs = sub.add_parser("jobs", help="find and track roles (Active Jobs DB via RapidAPI)")
+    jsub = jobs.add_subparsers(dest="jobs_command", required=True)
+
+    p = jsub.add_parser("search", help="one API request: fetch new roles and save them")
+    p.add_argument("--titles", help=f"comma-separated (default: {', '.join(jobsmod.DEFAULT_TITLES)})")
+    p.add_argument("--locations", help='comma-separated (default: "United Kingdom")')
+    p.add_argument("--time-frame", default="7d", help="how far back: 1h, 24h, 7d (default 7d)")
+    p.add_argument("--limit", type=int, default=50, help="max jobs to fetch; counts against your monthly job quota")
+    p.add_argument("--offset", type=int, default=0, help="skip this many results (for paging)")
+    p.set_defaults(func=cmd_jobs_search)
+
+    p = jsub.add_parser("list", help="saved roles, best fit first")
+    p.add_argument("--fit", choices=["strong", "stretch", "skip"])
+    p.add_argument("--status", choices=jobsmod.STATUSES)
+    p.add_argument("--all", action="store_true", help="include skipped and rejected roles")
+    p.add_argument("--limit", type=int, default=30)
+    p.set_defaults(func=cmd_jobs_list)
+
+    p = jsub.add_parser("score", help="rate saved roles against your CV with Claude")
+    p.add_argument("--max", type=int, default=40, help="max roles to score in this run")
+    p.add_argument("--rescore", action="store_true")
+    p.set_defaults(func=cmd_jobs_score)
+
+    p = jsub.add_parser("show", help="details for one role")
+    p.add_argument("id")
+    p.set_defaults(func=cmd_jobs_show)
+
+    p = jsub.add_parser("status", help="track where you are with a role")
+    p.add_argument("id")
+    p.add_argument("status", choices=jobsmod.STATUSES)
+    p.set_defaults(func=cmd_jobs_status)
+
+    p = jsub.add_parser("prep", help="turn a role into a prep profile (then research, brief, mock)")
+    p.add_argument("id")
+    p.set_defaults(func=cmd_jobs_prep)
+
     p = sub.add_parser("show", help="print the dossier, brief, or last scorecard")
     p.add_argument("what", choices=["dossier", "brief", "last"])
     p.set_defaults(func=cmd_show)
@@ -326,6 +513,9 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(1)
     except anthropic.APIConnectionError:
         console.print("\n[red]Could not reach the Anthropic API.[/] Check your network connection.")
+        sys.exit(1)
+    except jobsmod.JobsAPIError as e:
+        console.print(f"[red]{e}[/]")
         sys.exit(1)
     except (FileNotFoundError, ValueError) as e:
         console.print(f"[red]{e}[/]")

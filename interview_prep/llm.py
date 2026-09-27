@@ -12,7 +12,7 @@ from typing import Callable
 
 import anthropic
 
-from .scoring import Scorecard, normalize
+from .scoring import JobFit, JobFitBatch, Scorecard, normalize
 
 MODEL = os.environ.get("PREP_MODEL", "claude-opus-5")
 
@@ -124,3 +124,16 @@ class Coach:
         if message.parsed_output is None:
             raise RuntimeError("The grader did not return a scorecard.")
         return normalize(message.parsed_output)
+
+    def score_jobs(self, system: list[dict], jobs_text: str) -> list[JobFit]:
+        message = self.client.beta.messages.parse(
+            max_tokens=16000,
+            system=system,
+            messages=[{"role": "user", "content": jobs_text}],
+            output_format=JobFitBatch,
+            **self._common("medium"),
+        )
+        _check(message)
+        if message.parsed_output is None:
+            raise RuntimeError("The scorer did not return results.")
+        return message.parsed_output.results

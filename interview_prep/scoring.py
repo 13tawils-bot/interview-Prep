@@ -38,6 +38,20 @@ class Scorecard(BaseModel):
     next_focus: list[str]
 
 
+JobFitLabel = Literal["strong", "stretch", "skip"]
+
+
+class JobFit(BaseModel):
+    job_id: str
+    fit: JobFitLabel
+    reason: str
+    gaps: str
+
+
+class JobFitBatch(BaseModel):
+    results: list[JobFit]
+
+
 def _clamp(value: int, lo: int, hi: int) -> int:
     return max(lo, min(hi, value))
 

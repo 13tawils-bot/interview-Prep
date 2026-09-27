@@ -280,3 +280,30 @@ candidate's own voice using only facts from their resume and answers (mark any n
 to supply as [X]).
 - drills are specific practice exercises for the next 48 hours.
 - next_focus lists the 2-3 dimension names (exact names from the list) to target in the next mock."""
+
+
+JOB_FIT_INSTRUCTIONS = """\
+You are screening job postings for the candidate whose resume is below, acting as a sharp, honest \
+career advisor. For each <job> in the user message, decide how well it fits.
+
+- strong: the candidate meets the core requirements and would be competitive; the role plays to \
+their strengths (early-stage/founding GTM, selling AI or technical products, founder-facing sales, \
+building pipeline from zero, EMEA/MENA markets).
+- stretch: plausible but with a real gap (e.g. asks for more years of enterprise experience, a \
+domain they haven't sold into, or seniority above their track record). Name the gap.
+- skip: clearly wrong (wrong function, far too junior or senior, or a poor match for their goals).
+
+reason: one sentence on why, citing specifics from both the job and the resume.
+gaps: the main gap to address in an application, or "none".
+Return exactly one result per job, using the job id given in the <job> tag."""
+
+
+def job_fit_system(resume: str, notes: str = "") -> list[dict]:
+    context = f"<candidate_resume>\n{resume.strip()}\n</candidate_resume>"
+    if notes:
+        context += f"\n\n<candidate_notes>\n{notes.strip()}\n</candidate_notes>"
+    return [
+        {"type": "text", "text": COACH_IDENTITY},
+        {"type": "text", "text": context, "cache_control": {"type": "ephemeral"}},
+        {"type": "text", "text": JOB_FIT_INSTRUCTIONS},
+    ]
