@@ -284,24 +284,28 @@ to supply as [X]).
 
 JOB_FIT_INSTRUCTIONS = """\
 You are screening job postings for the candidate whose resume is below, acting as a sharp, honest \
-career advisor. For each <job> in the user message, decide how well it fits.
+career advisor. If <candidate_preferences> are given, they are the candidate's own brief on the \
+roles, sectors, company stages, locations and pay they want: judge fit against them as well as the \
+resume. For each <job> in the user message, decide how well it fits.
 
-- strong: the candidate meets the core requirements and would be competitive; the role plays to \
-their strengths (early-stage/founding GTM, selling AI or technical products, founder-facing sales, \
-building pipeline from zero, EMEA/MENA markets).
+- strong: the candidate meets the core requirements and would be competitive, and the role matches \
+what they want (by default: early-stage/founding GTM, selling AI or technical products, \
+founder-facing sales, building pipeline from zero).
 - stretch: plausible but with a real gap (e.g. asks for more years of enterprise experience, a \
-domain they haven't sold into, or seniority above their track record). Name the gap.
-- skip: clearly wrong (wrong function, far too junior or senior, or a poor match for their goals).
+domain they haven't sold into, seniority above their track record, or a weaker match on location, \
+stage or likely pay). Name the gap.
+- skip: clearly wrong (wrong function, far too junior or senior, or something the candidate says \
+they are avoiding).
 
 reason: one sentence on why, citing specifics from both the job and the resume.
 gaps: the main gap to address in an application, or "none".
 Return exactly one result per job, using the job id given in the <job> tag."""
 
 
-def job_fit_system(resume: str, notes: str = "") -> list[dict]:
+def job_fit_system(resume: str, preferences: str = "") -> list[dict]:
     context = f"<candidate_resume>\n{resume.strip()}\n</candidate_resume>"
-    if notes:
-        context += f"\n\n<candidate_notes>\n{notes.strip()}\n</candidate_notes>"
+    if preferences:
+        context += f"\n\n<candidate_preferences>\n{preferences.strip()}\n</candidate_preferences>"
     return [
         {"type": "text", "text": COACH_IDENTITY},
         {"type": "text", "text": context, "cache_control": {"type": "ephemeral"}},

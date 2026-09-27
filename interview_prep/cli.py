@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
+from pathlib import Path
 
 import anthropic
 from rich.console import Console
@@ -272,6 +274,7 @@ def cmd_jobs_search(args) -> None:
     console.print(f"[dim]Titles: {', '.join(titles)}\nLocations: {', '.join(locations)} · last {args.time_frame}[/]")
 
     fetched: list[dict] = []
+    quotas: dict[str, dict] = {}
     for source in sources:
         name = jobsmod.SOURCES[source]["name"]
         with console.status(f"Searching {name}…"):
@@ -283,7 +286,7 @@ def cmd_jobs_search(args) -> None:
                 console.print(f"[yellow]{e} Continuing with the other source.[/]")
                 continue
         fetched += result.jobs
-        q = result.quota
+        q = quotas[source] = result.quota
         console.print(
             f"{name}: {len(result.jobs)} fetched"
             + (
@@ -300,6 +303,12 @@ def cmd_jobs_search(args) -> None:
         f"[green]{len(report.added)} new[/] · {report.duplicates} duplicates or already saved · "
         + (", ".join(f"{n} dropped ({why})" for why, n in report.dropped.items()) or "0 dropped")
     )
+    if args.json:
+        added = [{**j, "dedupe_key": jobsmod.dedupe_key(j)} for j in report.added]
+        Path(args.json).write_text(
+            json.dumps({"quota": quotas, "dropped": report.dropped, "jobs": added}, indent=2)
+        )
+        console.print(f"Wrote {len(added)} new roles to {args.json}")
     if report.added:
         _jobs_table(sorted(report.added, key=lambda j: -j["quick_score"]), title="New roles")
         console.print("Next: [bold]prep jobs score[/] to rate them against your CV.")
@@ -356,7 +365,7 @@ def cmd_jobs_score(args) -> None:
         console.print("Everything is already scored. Use --rescore to redo it.")
         return
     coach = Coach()
-    system = job_fit_system(resume)
+    system = job_fit_system(resume, store.load_preferences())
     scored = 0
     for i in range(0, len(todo), 10):
         batch = todo[i : i + 10]
@@ -481,6 +490,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--limit", type=int, default=50, help="max jobs per source; counts against each API's monthly job quota")
     p.add_argument("--offset", type=int, default=0, help="skip this many results (for paging)")
+    p.add_argument("--json", metavar="PATH", help="also write the new roles and quota as JSON (for automation)")
     p.set_defaults(func=cmd_jobs_search)
 
     p = jsub.add_parser("list", help="saved roles, best fit first")

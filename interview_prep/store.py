@@ -3,6 +3,7 @@
     $PREP_HOME/                      (default ./prep_data)
       active                         slug of the active profile
       resume.txt                     default resume, used when init has no --resume
+      preferences.md                 what roles you want; used when scoring jobs
       <slug>/profile.json            company, role, JD, resume text, notes
       <slug>/dossier.md              company research
       <slug>/brief.md                prep brief
@@ -111,3 +112,8 @@ def save_default_resume(text: str, root: Path | None = None) -> Path:
 def load_default_resume(root: Path | None = None) -> str | None:
     path = default_resume_path(root)
     return path.read_text() if path.exists() else None
+
+
+def load_preferences(root: Path | None = None) -> str:
+    path = (root or home()) / "preferences.md"
+    return path.read_text() if path.exists() else ""

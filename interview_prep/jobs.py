@@ -41,21 +41,26 @@ SOURCES = {
 }
 
 DEFAULT_TITLES = [
-    "Account Executive",
-    "Account Director",
-    "Account Manager",
     "Founding GTM",
+    "Founding Sales",
+    "Founding Account Executive",
     "GTM Lead",
+    "Commercial Director",
+    "VP Sales",
+    "VP of Sales",
     "Head of Sales",
-    "Business Development",
-    "Partnerships",
+    "Regional Vice President",
+    "Enterprise Account Executive",
+    "Senior Account Executive",
+    "Mid-Market Account Executive",
 ]
-DEFAULT_LOCATIONS = ["United Kingdom"]
+DEFAULT_LOCATIONS = ["United Kingdom", "United Arab Emirates", "Saudi Arabia"]
 
 # Titles that match a search term but aren't the kind of role we want.
 EXCLUDE_TITLE = re.compile(
     r"\b(intern|internship|graduate|sdr|bdr|sales development|business development representative|"
     r"customer success|support|recruit|marketing manager|engineer|analyst|assistant|coordinator|"
+    r"account manager|associate|"
     r"operations|revops|sales ops|delivery|contractor|junior|entry[- ]level|trainee|apprentice)\b",
     re.I,
 )

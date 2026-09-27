@@ -191,3 +191,20 @@ def test_score_and_prep_commands(tmp_path, monkeypatch):
     profile = store.Profile(store.get_active()).load()
     assert profile["company"] == "Acme AI" and "Founding GTM Lead" in profile["job_description"]
     assert jobs.JobStore().get("2")["status"] == "shortlisted"
+
+
+def test_search_json_output(tmp_path, monkeypatch):
+    from interview_prep import cli
+
+    monkeypatch.setenv("PREP_HOME", str(tmp_path))
+
+    def fake_search(titles, locations, time_frame, limit, offset, source):
+        return jobs.SearchResult(jobs=[raw_job(1 if source == "ats" else 2)], quota={"requests_remaining": 20})
+
+    monkeypatch.setattr(jobs, "search", fake_search)
+    out = tmp_path / "new.json"
+    cli.main(["jobs", "search", "--json", str(out)])
+    data = json.loads(out.read_text())
+    assert data["quota"] == {"ats": {"requests_remaining": 20}, "linkedin": {"requests_remaining": 20}}
+    # Same company + title from both sources is kept once.
+    assert len(data["jobs"]) == 1 and data["jobs"][0]["dedupe_key"] == "acmeai|account executive"
