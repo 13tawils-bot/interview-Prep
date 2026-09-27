@@ -47,14 +47,20 @@ get scored), `/quit` (discard the session).
 
 ### Finding roles: `prep jobs`
 
-`prep jobs` searches [Active Jobs DB](https://rapidapi.com/fantastic-jobs-fantastic-jobs-default/api/active-jobs-db)
-(Fantastic.jobs, via RapidAPI), which indexes jobs from company career sites and hiring systems and
-adds company data (industry, headcount, funding) and AI-extracted fields (experience level, work
-arrangement, requirements).
+`prep jobs` searches two Fantastic.jobs APIs on RapidAPI (subscribe to both with the same key):
+
+- [Active Jobs DB](https://rapidapi.com/fantastic-jobs-fantastic-jobs-default/api/active-jobs-db):
+  company career sites and hiring systems, with company data including funding.
+- [LinkedIn Job Search API](https://rapidapi.com/fantastic-jobs-fantastic-jobs-default/api/linkedin-job-search-api):
+  LinkedIn postings, including startups that only post there.
+
+Both add AI-extracted fields (experience level, work arrangement, requirements). A role found on
+both is kept once, preferring the company-site version.
 
 ```bash
 export RAPIDAPI_KEY=...        # not needed in a Claude Code cloud env with a RapidAPI credential
-prep jobs search               # one request: UK sales/GTM roles from the last 7 days
+prep jobs search               # UK sales/GTM roles from the last 7 days (1 request per source)
+prep jobs search --source linkedin --limit 25   # one source only, smaller pull
 prep jobs search --titles "Account Executive,Founding GTM" --locations "United Kingdom,Ireland" --time-frame 24h
 prep jobs score                # Claude rates each role against your saved CV: strong / stretch / skip
 prep jobs list                 # best fit first; --fit strong, --status applied, --all
@@ -63,9 +69,9 @@ prep jobs status <id> applied  # track: new, shortlisted, applied, interviewing,
 prep jobs prep <id>            # turn a role into a prep profile, then: prep research / brief / mock
 ```
 
-Every search is a single API request and results are saved to `prep_data/jobs/jobs.json`, so
+Every search is one API request per source and results are saved to `prep_data/jobs/jobs.json`, so
 listing, scoring and tracking cost nothing. Recruitment agencies, non-tech companies and
-out-of-scope titles (SDR, ops, engineering, internships) are filtered out locally. The free plan
+out-of-scope titles (SDR, ops, engineering, internships) are filtered out locally. Each API's free plan
 allows 25 requests and 250 jobs a month; the remaining quota is shown after each search.
 
 ### Mock modes

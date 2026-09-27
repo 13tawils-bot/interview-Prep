@@ -69,6 +69,23 @@ def test_search_builds_query_and_reads_quota(monkeypatch):
     assert result.quota == {"requests_remaining": 22, "jobs_remaining": 200}
 
 
+def test_search_linkedin_source(monkeypatch):
+    monkeypatch.delenv("RAPIDAPI_KEY", raising=False)
+    seen = {}
+
+    def opener(req, timeout):
+        seen["url"] = req.full_url
+        seen["host"] = req.get_header("X-rapidapi-host")
+        return FakeResponse([raw_job(seniority="Mid-Senior level")])
+
+    result = jobs.search(["AE"], ["UK"], source="linkedin", opener=opener)
+    assert seen["url"].startswith("https://linkedin-job-search-api.p.rapidapi.com/active-jb?")
+    assert seen["host"] == "linkedin-job-search-api.p.rapidapi.com"
+    # LinkedIn rejects this parameter with a 400.
+    assert "include_basic_organization_details" not in seen["url"]
+    assert jobs.normalize(result.jobs[0])["source"] == "linkedin"
+
+
 def test_search_sends_key_from_env(monkeypatch):
     monkeypatch.setenv("RAPIDAPI_KEY", "k")
     seen = {}
@@ -93,10 +110,11 @@ def test_search_explains_not_subscribed():
 def test_filters():
     keep = jobs.keep
     assert keep(jobs.normalize(raw_job()))[0]
-    assert keep(jobs.normalize(raw_job(org_linkedin_recruitment_agency_derived=True))) == (
-        False,
-        "recruitment agency",
-    )
+    agency = raw_job(org_linkedin_industry="Staffing and Recruiting")
+    assert keep(jobs.normalize(agency)) == (False, "recruitment agency")
+    # The agency flag misfires on some software companies; trust the industry.
+    assert keep(jobs.normalize(raw_job(org_linkedin_recruitment_agency_derived=True)))[0]
+    assert keep(jobs.normalize(raw_job(title="Junior Account Executive")))[1] == "title out of scope"
     assert keep(jobs.normalize(raw_job(title="SDR, UK")))[1] == "title out of scope"
     assert keep(jobs.normalize(raw_job(title="Sales Engineer")))[1] == "title out of scope"
     not_tech = raw_job(

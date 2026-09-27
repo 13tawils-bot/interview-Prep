@@ -24,8 +24,21 @@ from pathlib import Path
 
 from . import store
 
-API_HOST = "active-jobs-db.p.rapidapi.com"
-SEARCH_URL = f"https://{API_HOST}/active-ats"
+# Both APIs are by Fantastic.jobs and share the same query syntax and most fields.
+SOURCES = {
+    "ats": {
+        "name": "Active Jobs DB",
+        "host": "active-jobs-db.p.rapidapi.com",
+        "path": "/active-ats",
+        "extra": {"include_basic_organization_details": "true"},
+    },
+    "linkedin": {
+        "name": "LinkedIn Job Search API",
+        "host": "linkedin-job-search-api.p.rapidapi.com",
+        "path": "/active-jb",
+        "extra": {},
+    },
+}
 
 DEFAULT_TITLES = [
     "Account Executive",
@@ -43,7 +56,7 @@ DEFAULT_LOCATIONS = ["United Kingdom"]
 EXCLUDE_TITLE = re.compile(
     r"\b(intern|internship|graduate|sdr|bdr|sales development|business development representative|"
     r"customer success|support|recruit|marketing manager|engineer|analyst|assistant|coordinator|"
-    r"operations|revops|sales ops|delivery|contractor)\b",
+    r"operations|revops|sales ops|delivery|contractor|junior|entry[- ]level|trainee|apprentice)\b",
     re.I,
 )
 
@@ -87,9 +100,11 @@ def search(
     time_frame: str = "7d",
     limit: int = 50,
     offset: int = 0,
+    source: str = "ats",
     opener=urllib.request.urlopen,
 ) -> SearchResult:
-    """One request to /active-ats. Costs 1 request and up to `limit` jobs of quota."""
+    """One request to the source's API. Costs 1 request and up to `limit` jobs of that API's quota."""
+    cfg = SOURCES[source]
     params = {
         "title": or_query(titles),
         "location": or_query(locations),
@@ -97,10 +112,10 @@ def search(
         "limit": str(limit),
         "offset": str(offset),
         "description_format": "text",
-        "include_basic_organization_details": "true",
+        **cfg["extra"],
     }
-    req = urllib.request.Request(f"{SEARCH_URL}?{urllib.parse.urlencode(params)}")
-    req.add_header("X-RapidAPI-Host", API_HOST)
+    req = urllib.request.Request(f"https://{cfg['host']}{cfg['path']}?{urllib.parse.urlencode(params)}")
+    req.add_header("X-RapidAPI-Host", cfg["host"])
     if os.environ.get("RAPIDAPI_KEY"):
         req.add_header("X-RapidAPI-Key", os.environ["RAPIDAPI_KEY"])
     try:
@@ -112,18 +127,20 @@ def search(
             message = json.loads(e.read().decode("utf-8")).get("message", "")
         except (ValueError, AttributeError):
             message = ""
-        raise JobsAPIError(_explain(e.code, message)) from e
+        raise JobsAPIError(f"{cfg['name']}: {_explain(e.code, message)}") from e
     except urllib.error.URLError as e:
-        raise JobsAPIError(f"Could not reach {API_HOST}: {e.reason}") from e
+        raise JobsAPIError(f"Could not reach {cfg['host']}: {e.reason}") from e
     if not isinstance(body, list):
-        raise JobsAPIError(f"Unexpected response from Active Jobs DB: {str(body)[:200]}")
+        raise JobsAPIError(f"Unexpected response from {cfg['name']}: {str(body)[:200]}")
+    for job in body:
+        job["_source"] = source
     return SearchResult(jobs=body, quota=_quota(headers))
 
 
 def _explain(status: int, message: str) -> str:
     if status == 403 and "not subscribed" in message.lower():
         return (
-            "RapidAPI says this key isn't subscribed to Active Jobs DB. Check the key is the one "
+            "RapidAPI says this key isn't subscribed to this API. Check the key is the one "
             "your RapidAPI app uses, and that the app is subscribed to a plan."
         )
     if status == 429:
@@ -155,7 +172,8 @@ def normalize(raw: dict) -> dict:
     locations = raw.get("locations_derived") or raw.get("locations_alt") or []
     return {
         "id": str(raw.get("id")),
-        "source": "active-jobs-db",
+        "source": raw.get("_source", "ats"),
+        "seniority": raw.get("seniority"),
         "title": raw.get("title") or "",
         "organization": raw.get("organization") or raw.get("org_linkedin_name") or "",
         "url": raw.get("url") or "",
@@ -203,9 +221,17 @@ def is_ai(job: dict) -> bool:
     return bool(AI_DESCRIPTION.search(job.get("company_description") or ""))
 
 
+def is_agency(job: dict) -> bool:
+    """The agency flag misfires on some software companies, so check the industry too."""
+    industry = (job.get("industry") or "").lower()
+    if "staffing" in industry or "recruit" in industry:
+        return True
+    return job.get("is_agency", False) and not TECH_INDUSTRY.search(industry)
+
+
 def keep(job: dict) -> tuple[bool, str]:
     """Local filter; returns (keep?, reason if dropped)."""
-    if job["is_agency"]:
+    if is_agency(job):
         return False, "recruitment agency"
     if EXCLUDE_TITLE.search(job["title"]):
         return False, "title out of scope"
@@ -229,7 +255,7 @@ def quick_score(job: dict) -> int:
         score += 10
     elif level == "10+":
         score -= 20
-    elif level == "0-2":
+    elif level == "0-2" or job.get("seniority") in ("Entry level", "Internship"):
         score -= 10
     headcount = job.get("headcount") or 0
     if 10 <= headcount <= 500:

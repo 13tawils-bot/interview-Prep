@@ -268,22 +268,38 @@ def _split(value: str | None, default: list[str]) -> list[str]:
 def cmd_jobs_search(args) -> None:
     titles = _split(args.titles, jobsmod.DEFAULT_TITLES)
     locations = _split(args.locations, jobsmod.DEFAULT_LOCATIONS)
+    sources = ["ats", "linkedin"] if args.source == "both" else [args.source]
     console.print(f"[dim]Titles: {', '.join(titles)}\nLocations: {', '.join(locations)} · last {args.time_frame}[/]")
-    with console.status("Searching Active Jobs DB…"):
-        result = jobsmod.search(titles, locations, args.time_frame, args.limit, args.offset)
-    report = jobsmod.JobStore().merge(result.jobs)
 
+    fetched: list[dict] = []
+    for source in sources:
+        name = jobsmod.SOURCES[source]["name"]
+        with console.status(f"Searching {name}…"):
+            try:
+                result = jobsmod.search(titles, locations, args.time_frame, args.limit, args.offset, source)
+            except jobsmod.JobsAPIError as e:
+                if len(sources) == 1:
+                    raise
+                console.print(f"[yellow]{e} Continuing with the other source.[/]")
+                continue
+        fetched += result.jobs
+        q = result.quota
+        console.print(
+            f"{name}: {len(result.jobs)} fetched"
+            + (
+                f" [dim](quota left: {q.get('requests_remaining', '?')}/{q.get('requests_limit', '?')} requests, "
+                f"{q.get('jobs_remaining', '?')}/{q.get('jobs_limit', '?')} jobs)[/]"
+                if q
+                else ""
+            )
+        )
+
+    # ATS results first, so a role on both keeps the company-site version.
+    report = jobsmod.JobStore().merge(fetched)
     console.print(
-        f"Fetched {len(result.jobs)} · [green]{len(report.added)} new[/] · "
-        f"{report.duplicates} already saved · "
+        f"[green]{len(report.added)} new[/] · {report.duplicates} duplicates or already saved · "
         + (", ".join(f"{n} dropped ({why})" for why, n in report.dropped.items()) or "0 dropped")
     )
-    q = result.quota
-    if q:
-        console.print(
-            f"[dim]Quota left this month: {q.get('requests_remaining', '?')}/{q.get('requests_limit', '?')} "
-            f"requests, {q.get('jobs_remaining', '?')}/{q.get('jobs_limit', '?')} jobs[/]"
-        )
     if report.added:
         _jobs_table(sorted(report.added, key=lambda j: -j["quick_score"]), title="New roles")
         console.print("Next: [bold]prep jobs score[/] to rate them against your CV.")
@@ -450,14 +466,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("progress", help="scores over time and what to work on").set_defaults(func=cmd_progress)
 
-    jobs = sub.add_parser("jobs", help="find and track roles (Active Jobs DB via RapidAPI)")
+    jobs = sub.add_parser("jobs", help="find and track roles (Active Jobs DB + LinkedIn via RapidAPI)")
     jsub = jobs.add_subparsers(dest="jobs_command", required=True)
 
     p = jsub.add_parser("search", help="one API request: fetch new roles and save them")
     p.add_argument("--titles", help=f"comma-separated (default: {', '.join(jobsmod.DEFAULT_TITLES)})")
     p.add_argument("--locations", help='comma-separated (default: "United Kingdom")')
     p.add_argument("--time-frame", default="7d", help="how far back: 1h, 24h, 7d (default 7d)")
-    p.add_argument("--limit", type=int, default=50, help="max jobs to fetch; counts against your monthly job quota")
+    p.add_argument(
+        "--source",
+        choices=["both", "ats", "linkedin"],
+        default="both",
+        help="ats = company career sites (Active Jobs DB), linkedin = LinkedIn Job Search API; both = 2 requests",
+    )
+    p.add_argument("--limit", type=int, default=50, help="max jobs per source; counts against each API's monthly job quota")
     p.add_argument("--offset", type=int, default=0, help="skip this many results (for paging)")
     p.set_defaults(func=cmd_jobs_search)
 
