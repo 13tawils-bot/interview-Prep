@@ -77,6 +77,8 @@ TECH_INDUSTRY = re.compile(
     r"software|technology|internet|computer|information|it services|saas|fintech|artificial intelligence",
     re.I,
 )
+# Recruiters that list under their own name with a tech industry tag, so the checks above miss them.
+KNOWN_RECRUITERS = re.compile(r"^(jumpstart|jack & jill|techtree|cygnify)\b", re.I)
 # Crunchbase categories are reliable; free-text descriptions need stronger phrases,
 # since most companies now mention AI somewhere.
 AI_CATEGORY = re.compile(r"artificial intelligence|machine learning|generative ai|\bai\b", re.I)
@@ -238,6 +240,8 @@ def is_agency(job: dict) -> bool:
     """The agency flag misfires on some software companies, so check the industry too."""
     industry = (job.get("industry") or "").lower()
     if "staffing" in industry or "recruit" in industry:
+        return True
+    if KNOWN_RECRUITERS.search(job.get("organization") or ""):
         return True
     return job.get("is_agency", False) and not TECH_INDUSTRY.search(industry)
 
