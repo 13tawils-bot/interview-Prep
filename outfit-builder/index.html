@@ -1,0 +1,323 @@
+<title>Full Look</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,500;1,6..96,500&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a fitting-room rail. The brief sits on the left like a stylist's card;
+   looks hang to the right as swing tags, each with its own receipt. */
+:root {
+  --bg: #ECEEF1;
+  --paper: #FFFFFF;
+  --ink: #15161A;
+  --muted: #5F636C;
+  --line: #D3D7DE;
+  --accent: #7B1E3A;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #F4E4E9;
+  --ok: #2D6A45;
+  --warn: #8F5400;
+  --font-display: "Bodoni Moda", "Didot", "Bodoni 72", Georgia, serif;
+  --font-body: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111215; --paper: #1B1C21; --ink: #ECECEF; --muted: #9A9DA6; --line: #2E3038;
+    --accent: #E68AA6; --accent-ink: #1A0B10; --accent-soft: #3A1E28; --ok: #7CC596; --warn: #E2A95A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111215; --paper: #1B1C21; --ink: #ECECEF; --muted: #9A9DA6; --line: #2E3038;
+  --accent: #E68AA6; --accent-ink: #1A0B10; --accent-soft: #3A1E28; --ok: #7CC596; --warn: #E2A95A;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-inline: 16px; padding-block: 0 48px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; }
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; padding-block: 28px 20px; }
+h1 { font-family: var(--font-display); font-weight: 500; font-size: clamp(2.2rem, 5vw, 3.4rem); line-height: 1; margin: 0; letter-spacing: -0.01em; }
+h1 em { color: var(--accent); }
+.tagline { margin: 6px 0 0; color: var(--muted); max-width: 46ch; text-wrap: balance; }
+.demo { font-family: var(--font-mono); font-size: 12px; color: var(--muted); border: 1px dashed var(--line); padding: 6px 10px; border-radius: 4px; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+/* Brief card */
+form.brief { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 20px; display: grid; gap: 20px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+@media (max-width: 860px) { form.brief { position: static; } }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 8px; }
+legend, .label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 0; margin-bottom: 8px; }
+.budget-row { display: flex; align-items: baseline; gap: 4px; font-family: var(--font-display); font-size: 2.4rem; line-height: 1; }
+.budget-row input { font: inherit; width: 5ch; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); padding: 0 0 2px; font-variant-numeric: tabular-nums; }
+.budget-row input:focus { outline: none; border-bottom-color: var(--accent); }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips label { position: relative; }
+.chips input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.chips span { display: inline-block; padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; cursor: pointer; transition: background .15s, border-color .15s; }
+.chips label:hover span { border-color: var(--muted); }
+.chips input:checked + span { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.chips input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Results */
+.results { display: grid; gap: 22px; min-width: 0; }
+.summary { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; color: var(--muted); font-size: 14px; }
+.summary strong { color: var(--ink); font-weight: 600; }
+.empty { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 28px; }
+.empty h2 { font-family: var(--font-display); font-weight: 500; margin: 0 0 6px; font-size: 1.6rem; }
+.empty p { margin: 0; color: var(--muted); }
+
+.look { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); overflow: hidden; }
+@media (max-width: 720px) { .look { grid-template-columns: minmax(0, 1fr); } }
+.look-main { padding: 20px 22px; min-width: 0; }
+.look-side { padding: 20px 22px; border-left: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 45%, var(--paper)); min-width: 0; display: grid; gap: 16px; align-content: start; }
+@media (max-width: 720px) { .look-side { border-left: 0; border-top: 1px solid var(--line); } }
+.look-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.look-head h2 { font-family: var(--font-display); font-weight: 500; font-style: italic; font-size: 1.7rem; margin: 0; }
+.total { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px; }
+.total b { font-size: 18px; font-weight: 500; }
+.meter { height: 4px; background: var(--line); border-radius: 2px; margin: 10px 0 14px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+
+.strip { display: flex; gap: 6px; margin-bottom: 14px; }
+.strip i { flex: 1; height: 26px; border-radius: 3px; border: 1px solid var(--line); }
+
+ul.items { list-style: none; margin: 0; padding: 0; }
+li.item { border-top: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px 0; }
+.sw { width: 40px; height: 40px; border-radius: 4px; border: 1px solid var(--line); }
+.name { font-weight: 500; overflow-wrap: anywhere; }
+.meta { font-size: 12.5px; color: var(--muted); }
+.meta .slot { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
+.price { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+button { font: inherit; cursor: pointer; }
+.swap { font-size: 12.5px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); }
+.swap:hover, .swap[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.alts { padding: 4px 0 12px 52px; display: grid; gap: 6px; }
+@media (max-width: 480px) { .alts { padding-left: 0; } }
+.alt { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; text-align: left; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--ink); }
+.alt:hover { border-color: var(--accent); background: var(--accent-soft); }
+.alt .sw { width: 28px; height: 28px; }
+.alt .delta { font-family: var(--font-mono); font-size: 12.5px; font-variant-numeric: tabular-nums; text-align: right; }
+.alt .delta small { display: block; color: var(--muted); }
+.none { font-size: 13px; color: var(--muted); }
+
+.notes { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; }
+.notes li::marker { color: var(--accent); }
+.notes .flag { color: var(--warn); }
+
+.basket { display: grid; gap: 10px; font-size: 13.5px; }
+.shop { display: grid; gap: 2px; }
+.shop-line { display: flex; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
+.shop-line span:last-child { font-family: var(--font-mono); }
+.shop .hint { font-size: 12.5px; color: var(--muted); }
+.shop .free { color: var(--ok); }
+.receipt-total { border-top: 1px dashed var(--line); padding-top: 8px; display: flex; justify-content: space-between; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.copy { justify-self: start; font-size: 13px; padding: 7px 14px; border-radius: 999px; border: 0; background: var(--ink); color: var(--paper); }
+.copy:hover { background: var(--accent); color: var(--accent-ink); }
+textarea.fallback { width: 100%; min-height: 120px; font-family: var(--font-mono); font-size: 12px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
+footer { margin-top: 36px; color: var(--muted); font-size: 13px; max-width: 70ch; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Full <em>Look</em></h1>
+      <p class="tagline">Set a budget, an occasion and a style. Get complete outfits across several shops, with delivery already counted.</p>
+    </div>
+    <div class="demo">Demo catalogue · fictional shops · illustrative prices</div>
+  </header>
+
+  <div class="layout">
+    <form class="brief" id="brief" autocomplete="off">
+      <fieldset>
+        <legend>Budget, delivery included</legend>
+        <div class="budget-row">£<input id="budget" name="budget" type="number" inputmode="numeric" min="30" max="1000" step="5" value="200" aria-label="Budget in pounds"></div>
+        <input id="budget-range" type="range" min="30" max="600" step="5" value="200" aria-label="Budget slider">
+      </fieldset>
+      <fieldset><legend>Occasion</legend><div class="chips" id="occasion"></div></fieldset>
+      <fieldset><legend>Aesthetic</legend><div class="chips" id="aesthetic"></div></fieldset>
+      <fieldset><legend>Shop from</legend><div class="chips" id="gender"></div></fieldset>
+      <fieldset><legend>Weather</legend><div class="chips" id="season"></div></fieldset>
+      <fieldset><legend>Colour</legend><div class="chips" id="palette"></div></fieldset>
+    </form>
+
+    <main class="results" id="results" aria-live="polite"></main>
+  </div>
+
+  <footer>
+    Prices, retailers and delivery terms here are a demo catalogue so the outfit logic can be tried end to end. A live version swaps in a real product feed with the same fields.
+  </footer>
+</div>
+
+<script src="catalogue.js"></script>
+<script src="engine.js"></script>
+<script>
+(function () {
+  const E = window.OutfitEngine, C = window.OUTFIT_CATALOGUE;
+  const OPTIONS = {
+    occasion: Object.entries(E.OCCASIONS).map(([v, o]) => [v, o.label]),
+    aesthetic: Object.entries(E.AESTHETICS).map(([v, a]) => [v, a.label]),
+    gender: [["w", "Womenswear"], ["m", "Menswear"], ["all", "Everything"]],
+    season: [["warm", "Warm"], ["mild", "Mild"], ["cold", "Cold"]],
+    palette: [["any", "Any"], ["neutral", "Neutrals"], ["earthy", "Earthy"], ["colour", "Colourful"]],
+  };
+  const KEY = "full-look-brief";
+  let prefs = { ...E.DEFAULTS };
+  try { Object.assign(prefs, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) {}
+  let outfits = [];
+  let openSwap = null; // "lookIndex:itemIndex"
+
+  const $ = (id) => document.getElementById(id);
+  const money = (n) => "£" + n.toFixed(2);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const shop = (code) => C.retailers[code].name;
+
+  for (const [field, opts] of Object.entries(OPTIONS)) {
+    $(field).innerHTML = opts.map(([v, label]) =>
+      `<label><input type="radio" id="${field}-${v}" name="${field}" value="${v}"${prefs[field] === v ? " checked" : ""}><span>${label}</span></label>`).join("");
+  }
+  $("budget").value = prefs.budget;
+  $("budget-range").value = Math.min(prefs.budget, 600);
+
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch (e) {} }
+
+  function rebuild() {
+    openSwap = null;
+    outfits = prefs.budget >= 30 ? E.buildOutfits(prefs, C) : [];
+    render();
+    save();
+  }
+
+  function renderLook(o, li) {
+    const pct = Math.min(100, (o.total / prefs.budget) * 100);
+    const items = o.items.map((p, ii) => {
+      const key = li + ":" + ii;
+      const open = openSwap === key;
+      let alts = "";
+      if (open) {
+        const list = E.alternatives(o, ii, prefs, C);
+        alts = `<div class="alts">${list.length ? list.map((a, ai) => {
+          const d = a.outfit.total - o.total;
+          return `<button type="button" class="alt" data-look="${li}" data-item="${ii}" data-alt="${ai}">
+            <i class="sw" style="background:${a.product.swatch}"></i>
+            <span><span class="name">${esc(a.product.name)}</span><br><span class="meta">${shop(a.product.retailer)} · £${a.product.price}</span></span>
+            <span class="delta">${d === 0 ? "same" : (d > 0 ? "+" : "−") + money(Math.abs(d))}<small>total ${money(a.outfit.total)}</small></span>
+          </button>`;
+        }).join("") : `<p class="none">Nothing else fits this slot within £${prefs.budget}.</p>`}</div>`;
+        alternativesCache[key] = list;
+      }
+      return `<li class="item"><div class="row">
+          <i class="sw" style="background:${p.swatch}" title="${esc(p.colour)}"></i>
+          <div><div class="name">${esc(p.name)}</div><div class="meta"><span class="slot">${E.SLOT_LABELS[p.category]}</span> · ${esc(p.colour)} · ${shop(p.retailer)}${C.retailers[p.retailer].resale ? " (pre-loved)" : ""}</div></div>
+          <span class="price">£${p.price}</span>
+          <button type="button" class="swap" data-swap="${key}" aria-expanded="${open}">Swap</button>
+        </div>${alts}</li>`;
+    }).join("");
+
+    const baskets = o.baskets.map((b) => {
+      let hint = "";
+      if (b.delivery === 0) hint = `<span class="hint free">Free delivery</span>`;
+      else if (b.freeOver != null) hint = `<span class="hint">Spend £${(b.freeOver - b.subtotal).toFixed(2)} more here for free delivery</span>`;
+      else hint = `<span class="hint">Flat delivery on resale orders</span>`;
+      return `<div class="shop">
+        <div class="shop-line"><span>${b.name} · ${b.items.length} ${b.items.length > 1 ? "items" : "item"}</span><span>${money(b.subtotal)}</span></div>
+        ${b.delivery ? `<div class="shop-line"><span class="hint">Delivery</span><span>${money(b.delivery)}</span></div>` : ""}
+        ${hint}
+      </div>`;
+    }).join("");
+
+    const notes = o.notes.map((n) => `<li${/^Closest/.test(n) ? ' class="flag"' : ""}>${esc(n)}</li>`).join("");
+
+    return `<article class="look">
+      <div class="look-main">
+        <div class="look-head"><h2>Look ${li + 1}</h2>
+          <span class="total"><b>${money(o.total)}</b> of £${prefs.budget}</span></div>
+        <div class="meter" role="img" aria-label="${Math.round(pct)}% of budget"><i style="width:${pct}%"></i></div>
+        <div class="strip" aria-hidden="true">${o.items.map((p) => `<i style="background:${p.swatch}"></i>`).join("")}</div>
+        <ul class="items">${items}</ul>
+      </div>
+      <aside class="look-side">
+        <div><div class="label">Why it works</div><ul class="notes">${notes}</ul></div>
+        <div class="basket"><div class="label">Baskets</div>${baskets}
+          <div class="receipt-total"><span>Total</span><span>${money(o.total)}</span></div></div>
+        <button type="button" class="copy" data-copy="${li}">Copy shopping list</button>
+        <div data-copy-out="${li}"></div>
+      </aside>
+    </article>`;
+  }
+
+  let alternativesCache = {};
+  function render() {
+    alternativesCache = {};
+    const occ = E.OCCASIONS[prefs.occasion].label.toLowerCase();
+    const style = E.AESTHETICS[prefs.aesthetic].label.toLowerCase();
+    if (!outfits.length) {
+      const min = E.minimumBudget(prefs, C);
+      $("results").innerHTML = `<div class="empty"><h2>No complete look fits £${prefs.budget}</h2>
+        <p>${isFinite(min) ? `The cheapest complete ${occ} outfit in this catalogue costs ${money(min)} with delivery. Raise the budget to at least £${Math.ceil(min / 5) * 5}.` : "Try a different occasion or the Everything range."}</p></div>`;
+      return;
+    }
+    $("results").innerHTML = `<div class="summary"><span><strong>${outfits.length} ${outfits.length > 1 ? "looks" : "look"}</strong> for a ${style} ${occ} outfit under £${prefs.budget}</span><span>Tap Swap on any piece to see alternatives that keep you in budget.</span></div>`
+      + outfits.map(renderLook).join("");
+  }
+
+  function listText(o, li) {
+    const lines = [`Look ${li + 1}: ${E.AESTHETICS[prefs.aesthetic].label} ${E.OCCASIONS[prefs.occasion].label.toLowerCase()} (${money(o.total)} of £${prefs.budget})`];
+    for (const b of o.baskets) {
+      lines.push(`${b.name}${b.delivery ? ` (+${money(b.delivery)} delivery)` : ""}`);
+      for (const p of b.items) lines.push(`  - ${p.name}, ${p.colour}: £${p.price}`);
+    }
+    return lines.join("\n");
+  }
+
+  $("brief").addEventListener("change", (e) => {
+    const t = e.target;
+    if (t.type === "radio") { prefs[t.name] = t.value; rebuild(); }
+  });
+  let timer;
+  function setBudget(v, from) {
+    const n = Math.max(0, Math.round(Number(v) || 0));
+    prefs.budget = n;
+    if (from !== "num") $("budget").value = n;
+    if (from !== "range") $("budget-range").value = Math.min(n, 600);
+    clearTimeout(timer); timer = setTimeout(rebuild, 120);
+  }
+  $("budget").addEventListener("input", (e) => setBudget(e.target.value, "num"));
+  $("budget-range").addEventListener("input", (e) => setBudget(e.target.value, "range"));
+  $("brief").addEventListener("submit", (e) => e.preventDefault());
+
+  $("results").addEventListener("click", (e) => {
+    const swap = e.target.closest("[data-swap]");
+    if (swap) { openSwap = openSwap === swap.dataset.swap ? null : swap.dataset.swap; render(); return; }
+    const alt = e.target.closest("[data-alt]");
+    if (alt) {
+      const key = alt.dataset.look + ":" + alt.dataset.item;
+      const choice = alternativesCache[key][Number(alt.dataset.alt)];
+      outfits[Number(alt.dataset.look)] = choice.outfit;
+      openSwap = null; render(); return;
+    }
+    const copy = e.target.closest("[data-copy]");
+    if (copy) {
+      const li = Number(copy.dataset.copy);
+      const text = listText(outfits[li], li);
+      const out = document.querySelector(`[data-copy-out="${li}"]`);
+      const fallback = () => { out.innerHTML = `<textarea class="fallback" id="copy-${li}" readonly></textarea>`; const ta = out.firstChild; ta.value = text; ta.select(); };
+      try {
+        navigator.clipboard.writeText(text).then(() => { copy.textContent = "Copied"; setTimeout(() => (copy.textContent = "Copy shopping list"), 1600); }, fallback);
+      } catch (err) { fallback(); }
+    }
+  });
+
+  rebuild();
+})();
+</script>
