@@ -80,6 +80,8 @@ test("insights flag a low-protein calorie source and a stalled cut", () => {
   assert.match(text, /Crisps made up \d+% of your calories but \d+% of your protein/);
   assert.match(text, /Greek yoghurt 0% is a leaner option/);
   assert.match(text, /slower than your target/);
+  const bulk = N.insights({ foods, days, weights, today, target: { ...target, p: 50 }, goal: "gain" }).map((i) => i.text).join("\n");
+  assert.doesNotMatch(bulk, /made up/, "no swaps in a bulk with protein covered");
 });
 
 test("Open Food Facts mapping", () => {

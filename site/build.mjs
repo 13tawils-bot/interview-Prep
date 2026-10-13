@@ -21,6 +21,11 @@ function wrap(src, extraHead = "", extraBody = "") {
   return `<!doctype html>\n<html lang="en-GB">\n<head>\n<meta charset="utf-8">\n${RESET}\n${head}\n${extraHead}\n</head>\n<body>${body}\n${extraBody}\n</body>\n</html>\n`;
 }
 
+export function demoPage(src) {
+  return src.replace("<title>Fuel Log</title>", "<title>Fuel Log Demo</title>")
+    .replace('<script src="train.js"></script>', '<script src="train.js"></script>\n<script src="demo.js"></script>');
+}
+
 // Fuel Log
 const gym = join(out, "gym");
 mkdirSync(gym, { recursive: true });
@@ -53,6 +58,13 @@ cpSync(join(root, "gym-tracker/pwa/manifest.webmanifest"), join(gym, "manifest.w
 const version = createHash("sha256").update(gymSrc + nutrition + common + readFileSync(join(root, "gym-tracker/pwa/sw.js"))).digest("hex").slice(0, 10);
 writeFileSync(join(gym, "sw.js"), readFileSync(join(root, "gym-tracker/pwa/sw.js"), "utf8").replace("__VERSION__", version));
 
+// Fuel Log demo: the same app preloaded with example data, outside the
+// installed app's scope so it never shares its cache or storage.
+const demo = join(out, "demo");
+mkdirSync(demo, { recursive: true });
+writeFileSync(join(demo, "index.html"), wrap(demoPage(gymSrc)));
+for (const f of ["commonfoods.js", "nutrition.js", "exercises.js", "workouts.js", "train.js", "demo.js"]) cpSync(join(root, "gym-tracker", f), join(demo, f));
+
 // Full Look
 const fit = join(out, "outfits");
 mkdirSync(fit, { recursive: true });
@@ -62,6 +74,6 @@ for (const f of ["catalogue.js", "engine.js"]) cpSync(join(root, "outfit-builder
 // Landing page
 writeFileSync(join(out, "index.html"), `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Apps</title>
 <style>body{font:16px system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 16px;line-height:1.5}a{display:block;margin:.5rem 0}</style></head>
-<body><h1>Apps</h1><a href="gym/">Fuel Log: weight and nutrition tracker</a><a href="outfits/">Full Look: outfit builder</a></body></html>\n`);
+<body><h1>Apps</h1><a href="gym/">Fuel Log: weight and nutrition tracker</a><a href="demo/">Fuel Log demo (example data)</a><a href="outfits/">Full Look: outfit builder</a></body></html>\n`);
 writeFileSync(join(out, ".nojekyll"), "");
 console.log(`Built _site (Fuel Log cache ${version})`);

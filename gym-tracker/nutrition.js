@@ -179,10 +179,12 @@
         const b = (by[e.foodId] ||= { kcal: 0, p: 0, meals: {} });
         b.kcal += e.kcal; b.p += e.p; b.meals[e.meal] = (b.meals[e.meal] || 0) + 1;
       }
+      // Swaps only help when cutting or short on protein; in a bulk, carbs are fuel.
+      const wantSwaps = goal === "lose" || avgP < target.p * 0.9;
       const total = Object.values(by).reduce((a, b) => a + b.kcal, 0) || 1;
       const totalP = Object.values(by).reduce((a, b) => a + b.p, 0) || 1;
       const ranked = Object.entries(by).sort((a, b) => b[1].kcal - a[1].kcal).slice(0, 5);
-      for (const [id, b] of ranked) {
+      for (const [id, b] of wantSwaps ? ranked : []) {
         const food = foods[id];
         if (!food || b.kcal / total < 0.08 || (b.p * 4) / b.kcal >= 0.15) continue;
         const meal = Object.entries(b.meals).sort((x, y) => y[1] - x[1])[0][0];
@@ -210,14 +212,14 @@
         else out.push({ kind: "good", text: `Gaining ${rate} kg a week on trend, in the lean-gain range.` });
       } else if (Math.abs(pct) > 0.25) out.push({ kind: "warn", text: `Trend weight is moving ${rate} kg a week while you're aiming to maintain.` });
     }
-    return out.concat(healthInsights({ days, weights, health, today }));
+    return out.concat(healthInsights({ days, weights, health, today, goal }));
   }
 
   const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
   const fmtSleep = (h) => `${Math.floor(h)}h ${String(Math.round((h % 1) * 60)).padStart(2, "0")}m`;
 
   // Steps and sleep from Apple Health, read against what you ate.
-  function healthInsights({ days, weights, health, today }) {
+  function healthInsights({ days, weights, health, today, goal = "lose" }) {
     const out = [];
     const range = (a, b) => Object.entries(health).filter(([d]) => d >= addDays(today, -a) && d < addDays(today, -b));
     const stepsNow = avg(range(7, 0).map(([, h]) => h.steps).filter((x) => x != null));
@@ -226,7 +228,7 @@
       const diff = Math.round(stepsNow - stepsBefore);
       const kg = latestWeight(weights) || 75;
       const kcal = Math.round((Math.abs(diff) * 0.04 * kg) / 70 / 10) * 10; // ~0.04 kcal per step at 70 kg
-      if (diff <= -1500) out.push({ kind: "warn", text: `Steps averaged ${Math.round(stepsNow).toLocaleString("en-GB")} this week, down ${Math.abs(diff).toLocaleString("en-GB")} on last week. That's about ${kcal} kcal a day less burned, enough to slow a cut.` });
+      if (diff <= -1500) out.push({ kind: "warn", text: `Steps averaged ${Math.round(stepsNow).toLocaleString("en-GB")} this week, down ${Math.abs(diff).toLocaleString("en-GB")} on last week. That's about ${kcal} kcal a day less burned${goal === "lose" ? ", enough to slow a cut" : goal === "gain" ? ", so the same food now gives a bigger surplus" : ""}.` });
       else if (diff >= 1500) out.push({ kind: "good", text: `Steps are up ${diff.toLocaleString("en-GB")} a day on last week (about ${kcal} kcal more burned).` });
     }
     const sleep = range(14, -1).map(([d, h]) => [d, h.sleepH]).filter(([, x]) => x != null);

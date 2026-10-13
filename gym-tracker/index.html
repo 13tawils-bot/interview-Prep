@@ -244,15 +244,18 @@ table.sets tr.done td:first-child { border-radius: 6px 0 0 6px; } table.sets tr.
   const S = { profile: null, weights: {}, foods: {}, days: {}, meals: {}, health: {}, workouts: {}, routines: {}, exercises: {}, photos: {}, active: null };
   const COMMON = window.COMMON_FOODS || [];
   const inClaude = !!(window.claude && window.claude.use);
-  const LOCAL = "fuel-log-v1";
+  // The demo page loads example data and never touches your real log.
+  const DEMO = window.FUEL_DEMO || null;
+  const LOCAL = DEMO ? "fuel-log-demo" : "fuel-log-v1";
   let mode = "local", refs = null, sample = null, imagesOk = false, assets = null;
-  let booting = !!(window.claude && window.claude.use); // wait for saved data before showing setup
+  let booting = !DEMO && !!(window.claude && window.claude.use); // wait for saved data before showing setup
   // Claude artifacts can't open the camera; the installed app can.
   const liveScanOk = !(window.claude && window.claude.use) && window.isSecureContext && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && !!window.ZXing;
   const installed = window.matchMedia && window.matchMedia("(display-mode: standalone)").matches;
   const queues = {};
 
   function loadLocal() {
+    if (DEMO) { Object.assign(S, JSON.parse(JSON.stringify(DEMO))); return; }
     try { Object.assign(S, JSON.parse(localStorage.getItem(LOCAL) || "{}")); } catch (e) {}
     for (const k of ["meals", "health", "workouts", "routines", "exercises", "photos"]) S[k] = S[k] || {};
     // The workout in progress is also kept on its own, so a crash or reload never loses sets.
@@ -301,7 +304,7 @@ table.sets tr.done td:first-child { border-radius: 6px 0 0 6px; } table.sets tr.
 
   async function connect() {
     const C = window.claude;
-    if (!C || !C.use) { setStore(); return; }
+    if (DEMO || !C || !C.use) { setStore(); return; }
     const [db, user, smp, ast] = await Promise.all([C.use("db"), C.use("user"), C.use("sample"), C.use("assets")]);
     assets = ast;
     if (smp) {
@@ -339,7 +342,7 @@ table.sets tr.done td:first-child { border-radius: 6px 0 0 6px; } table.sets tr.
     render();
   }
   function setStore() {
-    $("#store").textContent = mode === "db" ? "Saved to your Claude account" : installed ? "Saved on this phone" : "Saved in this browser";
+    $("#store").textContent = DEMO ? "Demo · example data" : mode === "db" ? "Saved to your Claude account" : installed ? "Saved on this phone" : "Saved in this browser";
   }
 
   // ---------- Units ----------
@@ -371,9 +374,9 @@ table.sets tr.done td:first-child { border-radius: 6px 0 0 6px; } table.sets tr.
     const v = $("#view");
     if (booting) { v.innerHTML = `<div class="card"><p class="empty" style="margin:0">Loading your log…</p></div>`; return; }
     if (!S.profile && tab !== "plan") { v.innerHTML = setupCard(); bindSetup(); return; }
-    const banner = tab !== "train" ? T.banner() : "";
+    const banner = (DEMO ? `<div class="status" role="note">This is a demo filled with four weeks of example data. Tap around freely; nothing is saved, and reloading resets it.</div>` : "") + (tab !== "train" ? T.banner() : "");
     if (tab === "today") v.innerHTML = banner + todayView(t);
-    else if (tab === "train") v.innerHTML = T.view();
+    else if (tab === "train") v.innerHTML = (DEMO ? banner : "") + T.view();
     else if (tab === "body") v.innerHTML = banner + weightView(t).replace(/<\/div>\s*$/, T.photosCard() + "</div>");
     else if (tab === "foods") v.innerHTML = banner + foodsView();
     else v.innerHTML = banner + planView(t);
