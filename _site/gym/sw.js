@@ -1,5 +1,5 @@
 // Offline support for the installed Fuel Log app. The build replaces
-// __VERSION__ with a content hash so each release gets a fresh cache.
+// b0021cf051 with a content hash so each release gets a fresh cache.
 const CACHE = "fuel-log-__VERSION__";
 const SHELL = ["./", "nutrition.js", "commonfoods.js", "exercises.js", "workouts.js", "train.js", "manifest.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png",
   "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"];
