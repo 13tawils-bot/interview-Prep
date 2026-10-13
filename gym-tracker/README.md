@@ -27,9 +27,20 @@ Claude account and syncs across devices. Label reading and coaching use Claude.
 Claude artifacts can't call outside websites, so Open Food Facts lookups don't
 run there: new barcodes are filled from a label photo instead, then remembered.
 
-**Self-hosted** (e.g. GitHub Pages, Netlify): open `index.html` from any static
-host. Open Food Facts lookups work; the log is saved in that browser (use
-Plan → Backup to move it); Claude features are hidden.
+**As a phone app** (installable PWA on GitHub Pages): live camera barcode
+scanning, Open Food Facts lookups from the barcode alone, works offline, and
+installs to the home screen. The log is saved on the phone (use Plan → Backup
+to move it); Claude features are hidden.
+
+- Every push to `gym-tracker/` runs `.github/workflows/pages.yml`, which tests,
+  builds with `site/build.mjs` and publishes to the `gh-pages` branch.
+- One-time setup: repo **Settings → Pages → Build and deployment → Deploy from a
+  branch → `gh-pages` / `(root)`**. The app is then at
+  `https://13tawils-bot.github.io/interview-Prep/gym/`.
+- Install on iPhone: open that link in **Safari** → Share → **Add to Home Screen**.
+  On Android: open it in **Chrome** → menu → **Install app**.
+- Build locally: `node site/build.mjs`, then serve `_site/` (camera access needs
+  `https://` or `localhost`).
 
 ```bash
 node --test gym-tracker/nutrition.test.js

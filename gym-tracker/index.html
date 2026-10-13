@@ -184,6 +184,9 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
   const LOCAL = "fuel-log-v1";
   let mode = "local", refs = null, sample = null, imagesOk = false;
   let booting = !!(window.claude && window.claude.use); // wait for saved data before showing setup
+  // Claude artifacts can't open the camera; the installed app can.
+  const liveScanOk = !(window.claude && window.claude.use) && window.isSecureContext && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && !!window.ZXing;
+  const installed = window.matchMedia && window.matchMedia("(display-mode: standalone)").matches;
   const queues = {};
 
   function loadLocal() {
@@ -242,7 +245,7 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
     render();
   }
   function setStore() {
-    $("#store").textContent = mode === "db" ? "Saved to your Claude account" : "Saved in this browser";
+    $("#store").textContent = mode === "db" ? "Saved to your Claude account" : installed ? "Saved on this phone" : "Saved in this browser";
   }
 
   // ---------- Units ----------
@@ -603,6 +606,30 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
     if (!dlg.open) dlg.showModal();
   }
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+  dlg.addEventListener("close", () => stopCamera());
+
+  // Live scanning: ZXing reads frames from the rear camera until it finds a code.
+  let camReader = null;
+  function stopCamera() { if (camReader) { try { camReader.reset(); } catch (e) {} camReader = null; } }
+  async function startCamera(video) {
+    stopCamera();
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E]);
+    const reader = camReader = new ZXing.BrowserMultiFormatReader(hints, 150);
+    try {
+      await reader.decodeFromConstraints({ video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } }, video, (result) => {
+        if (!result || camReader !== reader) return;
+        stopCamera();
+        if (navigator.vibrate) navigator.vibrate(60);
+        lookupBarcode(result.getText());
+      });
+      const st = $("#cam-status"); if (st) st.textContent = "Hold the barcode flat and fill most of the frame.";
+    } catch (e) {
+      stopCamera();
+      const st = $("#cam-status");
+      if (st) { st.className = "status warn"; st.textContent = e && e.name === "NotAllowedError" ? "Camera access is off. Allow it in your phone's settings for this app, or use Barcode photo." : "Couldn't start the camera. Use Barcode photo instead."; }
+    }
+  }
   function drawSheet() {
     const el = $("#sheet-body");
     const head = (title) => `<div class="row spread"><h2>${title}</h2><button class="x" type="button" id="sh-close" aria-label="Close">×</button></div>`;
@@ -613,7 +640,8 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
         .sort((a, b) => (hab[b.id]?.uses || 0) - (hab[a.id]?.uses || 0)).slice(0, 30);
       el.innerHTML = head("Add food") + `
         <div class="choices">
-          <label class="choice"><strong>Scan barcode</strong><span>Take a photo of the barcode</span><input type="file" id="bc-file" accept="image/*" capture="environment"></label>
+          ${liveScanOk ? `<button class="choice" type="button" id="live"><strong>Scan barcode</strong><span>Point your camera at it</span></button>` : ""}
+          <label class="choice"><strong>${liveScanOk ? "Barcode photo" : "Scan barcode"}</strong><span>Take a photo of the barcode</span><input type="file" id="bc-file" accept="image/*" capture="environment"></label>
           ${imagesOk ? `<label class="choice"><strong>Read label</strong><span>Photo of the nutrition panel; Claude fills it in</span><input type="file" id="lbl-file" accept="image/*" capture="environment"></label>` : ""}
           <button class="choice" type="button" id="manual"><strong>Enter manually</strong><span>Type the per-100g values</span></button>
           <button class="choice" type="button" id="typebc"><strong>Type barcode</strong><span>If the photo won't read</span></button>
@@ -622,6 +650,7 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
         <input type="search" id="sh-q" placeholder="Search your foods" value="${esc(sh.q)}" aria-label="Search your foods">
         <div class="results">${list.length ? list.map((f) => `<button type="button" class="result" data-pick="${esc(f.id)}"><span>${esc(f.name)}${f.brand ? ` <span class="muted small">${esc(f.brand)}</span>` : ""}</span><span class="small muted num">${f.per100.kcal}/100g</span></button>`).join("") : `<p class="empty">${sh.q ? "No match in your foods." : "Foods you add will appear here for one-tap logging."}</p>`}</div>`;
       $("#bc-file").onchange = (e) => e.target.files[0] && handleBarcodePhoto(e.target.files[0]);
+      const lv = $("#live"); if (lv) lv.onclick = () => { sh.step = "camera"; drawSheet(); };
       const lf = $("#lbl-file"); if (lf) lf.onchange = (e) => e.target.files[0] && readLabel(e.target.files[0], blankFood());
       $("#manual").onclick = () => { sh.step = "form"; sh.food = blankFood(); drawSheet(); };
       $("#typebc").onclick = () => { sh.step = "typebc"; drawSheet(); };
@@ -632,6 +661,12 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
       $("#tbc").onsubmit = (e) => { e.preventDefault(); const v = $("#tbc-v").value.replace(/\D/g, ""); if (v.length >= 8) lookupBarcode(v); };
       $("#back").onclick = () => { sh.step = "choose"; drawSheet(); };
       $("#tbc-v").focus();
+    } else if (sh.step === "camera") {
+      el.innerHTML = head("Scan barcode") + `<video id="cam" playsinline muted style="width:100%;border-radius:10px;background:#000;aspect-ratio:4/3;object-fit:cover"></video>
+        <div class="status" role="status" id="cam-status">Starting camera…</div>
+        <button class="link" type="button" id="back">Back</button>`;
+      $("#back").onclick = () => { stopCamera(); sh.step = "choose"; drawSheet(); };
+      startCamera($("#cam"));
     } else if (sh.step === "busy") {
       el.innerHTML = head("Add food") + `<div class="status" role="status">${esc(sh.status)}</div>`;
     } else if (sh.step === "form") {
