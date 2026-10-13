@@ -41,8 +41,13 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catc
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 </script>`));
 writeFileSync(join(gym, "nutrition.js"), nutrition);
-const common = readFileSync(join(root, "gym-tracker/commonfoods.js"), "utf8");
-writeFileSync(join(gym, "commonfoods.js"), common);
+// Supporting scripts, copied as-is; their contents feed the offline cache version.
+const extras = ["commonfoods.js", "exercises.js", "workouts.js", "train.js"].map((f) => {
+  const text = readFileSync(join(root, "gym-tracker", f), "utf8");
+  writeFileSync(join(gym, f), text);
+  return text;
+});
+const common = extras.join("");
 cpSync(join(root, "gym-tracker/pwa/icons"), join(gym, "icons"), { recursive: true });
 cpSync(join(root, "gym-tracker/pwa/manifest.webmanifest"), join(gym, "manifest.webmanifest"));
 const version = createHash("sha256").update(gymSrc + nutrition + common + readFileSync(join(root, "gym-tracker/pwa/sw.js"))).digest("hex").slice(0, 10);

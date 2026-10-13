@@ -124,8 +124,8 @@ label.field > span { font-weight: 500; }
 
 /* Tabs */
 nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line); padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; z-index: 5; }
-nav.tabs .in { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; max-width: 560px; gap: 4px; }
-nav.tabs button { background: none; border: 0; padding: 8px 4px; border-radius: 8px; font-family: var(--font-display); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; font-size: 15px; color: var(--muted); }
+nav.tabs .in { display: grid; grid-template-columns: repeat(5, 1fr); width: 100%; max-width: 560px; gap: 2px; }
+nav.tabs button { background: none; border: 0; padding: 8px 2px; border-radius: 8px; font-family: var(--font-display); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; font-size: 14px; color: var(--muted); }
 nav.tabs button[aria-current="page"] { color: var(--ink); background: var(--chalk); }
 
 /* Add-food sheet */
@@ -164,6 +164,45 @@ details.how summary { cursor: pointer; font-weight: 600; }
 details.how ol { padding-left: 20px; margin: 8px 0; display: grid; gap: 6px; font-size: 14px; }
 details.how code { font-family: var(--font-num); font-size: 12.5px; background: var(--chalk); padding: 1px 4px; border-radius: 4px; }
 pre.snip { font-family: var(--font-num); font-size: 12.5px; background: var(--chalk); padding: 8px 10px; border-radius: 8px; margin: 4px 0; white-space: pre-wrap; }
+.ex-card { gap: 8px; }
+.exname { background: none; border: 0; padding: 0; text-align: left; font-family: var(--font-display); font-weight: 600; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0.02em; color: var(--carbs); }
+.hint { margin: 0; font-size: 13px; color: var(--good); }
+.note { border: 0 !important; border-bottom: 1px dashed var(--line) !important; border-radius: 0 !important; padding: 4px 0 !important; font-size: 13.5px; background: transparent !important; }
+table.sets { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.sets th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 500; text-align: center; padding: 4px 2px; }
+table.sets td { padding: 3px 2px; text-align: center; }
+table.sets td.prev { color: var(--muted); font-size: 12.5px; font-family: var(--font-num); cursor: pointer; white-space: nowrap; }
+table.sets tr.done td { background: color-mix(in srgb, var(--good) 14%, transparent); }
+table.sets tr.done td:first-child { border-radius: 6px 0 0 6px; } table.sets tr.done td:last-child { border-radius: 0 6px 6px 0; }
+.si { width: 4.2rem !important; text-align: center; padding: 7px 4px !important; font-family: var(--font-num); }
+.stype { border: 0; background: var(--chalk); border-radius: 6px; width: 30px; height: 30px; font-weight: 600; font-family: var(--font-num); }
+.st-w { color: var(--fat); } .st-d { color: var(--carbs); } .st-f { color: var(--protein); }
+.chk { border: 1px solid var(--line); background: transparent; width: 34px; height: 30px; border-radius: 6px; color: var(--muted); font-weight: 700; }
+.chk[aria-pressed="true"] { background: var(--good); border-color: var(--good); color: #fff; }
+.prb { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; color: #fff; background: var(--fat); border-radius: 4px; padding: 0 4px; font-family: var(--font-body); }
+.pr-row { font-size: 14px; }
+.wk-name { font-family: var(--font-display); font-size: 1.35rem !important; font-weight: 600; text-transform: uppercase; border: 0 !important; padding: 0 !important; background: transparent !important; flex: 1; }
+.restbar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(64px + env(safe-area-inset-bottom, 0px)); width: min(528px, calc(100% - 32px)); display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--ink); color: var(--card); padding: 10px 14px; border-radius: 12px; z-index: 6; box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+.restbar strong { font-size: 1.3rem; }
+.restbar button { background: transparent; color: var(--card); border: 1px solid color-mix(in srgb, var(--card) 40%, transparent); border-radius: 6px; padding: 5px 9px; font-size: 13px; }
+.result.pick.on { background: color-mix(in srgb, var(--good) 12%, transparent); }
+.result .tick { font-weight: 700; color: var(--good); align-self: center; }
+.rt-row { border-bottom: 1px solid var(--line); padding: 10px 0; display: grid; gap: 6px; }
+.mbars { display: grid; gap: 6px; }
+.mbar { display: grid; grid-template-columns: 88px minmax(0, 1fr) 34px; gap: 8px; align-items: center; font-size: 13.5px; }
+.mbar .track { position: relative; }
+.mbar .track i { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--muted); }
+.mbar .num { text-align: right; }
+.ph-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.ph { border: 0; padding: 0; background: var(--chalk); border-radius: 8px; overflow: hidden; display: grid; text-align: left; }
+.ph img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; background: var(--chalk); }
+.ph span { font-size: 11.5px; padding: 4px 6px; color: var(--muted); }
+.ph-empty { aspect-ratio: 3/4; display: grid; place-items: center; background: var(--chalk); color: var(--muted); font-size: 13px; border-radius: 8px; }
+.cmp { display: grid; gap: 8px; }
+.cmp-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cmp-pair figure { margin: 0; display: grid; gap: 4px; }
+.cmp-pair img { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 8px; background: var(--chalk); }
+.cmp-pair figcaption { font-size: 12.5px; text-align: center; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 @media (max-width: 380px) { .grid3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>
@@ -178,7 +217,8 @@ pre.snip { font-family: var(--font-num); font-size: 12.5px; background: var(--ch
 
 <nav class="tabs" aria-label="Sections"><div class="in">
   <button type="button" data-tab="today">Today</button>
-  <button type="button" data-tab="weight">Weight</button>
+  <button type="button" data-tab="train">Train</button>
+  <button type="button" data-tab="body">Body</button>
   <button type="button" data-tab="foods">Foods</button>
   <button type="button" data-tab="plan">Plan</button>
 </div></nav>
@@ -188,6 +228,9 @@ pre.snip { font-family: var(--font-num); font-size: 12.5px; background: var(--ch
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script src="commonfoods.js"></script>
 <script src="nutrition.js"></script>
+<script src="exercises.js"></script>
+<script src="workouts.js"></script>
+<script src="train.js"></script>
 <script>
 (function () {
   const N = window.Nutrition;
@@ -198,11 +241,11 @@ pre.snip { font-family: var(--font-num); font-size: 12.5px; background: var(--ch
 
   // ---------- State and storage ----------
   // Saved to your Claude account when this runs as a Claude artifact, otherwise to this browser.
-  const S = { profile: null, weights: {}, foods: {}, days: {}, meals: {}, health: {} };
+  const S = { profile: null, weights: {}, foods: {}, days: {}, meals: {}, health: {}, workouts: {}, routines: {}, exercises: {}, photos: {}, active: null };
   const COMMON = window.COMMON_FOODS || [];
   const inClaude = !!(window.claude && window.claude.use);
   const LOCAL = "fuel-log-v1";
-  let mode = "local", refs = null, sample = null, imagesOk = false;
+  let mode = "local", refs = null, sample = null, imagesOk = false, assets = null;
   let booting = !!(window.claude && window.claude.use); // wait for saved data before showing setup
   // Claude artifacts can't open the camera; the installed app can.
   const liveScanOk = !(window.claude && window.claude.use) && window.isSecureContext && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && !!window.ZXing;
@@ -211,10 +254,13 @@ pre.snip { font-family: var(--font-num); font-size: 12.5px; background: var(--ch
 
   function loadLocal() {
     try { Object.assign(S, JSON.parse(localStorage.getItem(LOCAL) || "{}")); } catch (e) {}
-    S.meals = S.meals || {}; S.health = S.health || {};
+    for (const k of ["meals", "health", "workouts", "routines", "exercises", "photos"]) S[k] = S[k] || {};
+    // The workout in progress is also kept on its own, so a crash or reload never loses sets.
+    try { const a = JSON.parse(localStorage.getItem(LOCAL + "-active") || "null"); if (a) S.active = a; } catch (e) {}
   }
   function saveLocal() {
-    try { localStorage.setItem(LOCAL, JSON.stringify(S)); } catch (e) {}
+    try { const { active, ...rest } = S; localStorage.setItem(LOCAL, JSON.stringify(rest)); }
+    catch (e) { flash("This device is out of storage space for Fuel Log. Copy a backup from the Plan tab."); }
   }
   function write(ref, data) {
     const k = ref.path;
@@ -239,12 +285,25 @@ pre.snip { font-family: var(--font-num); font-size: 12.5px; background: var(--ch
     meal(m) { S.meals[m.id] = m; if (mode === "db") write(refs.meals.doc(m.id), m); else saveLocal(); },
     dropMeal(id) { delete S.meals[id]; if (mode === "db") write(refs.meals.doc(id), null); else saveLocal(); },
     health(date, h) { S.health[date] = h; if (mode === "db") write(refs.health.doc(date), { date, ...h }); else saveLocal(); },
+    workout(w) { S.workouts[w.id] = w; if (mode === "db") write(refs.workouts.doc(w.id), w); else saveLocal(); },
+    dropWorkout(id) { delete S.workouts[id]; if (mode === "db") write(refs.workouts.doc(id), null); else saveLocal(); },
+    routine(r) { S.routines[r.id] = r; if (mode === "db") write(refs.routines.doc(r.id), r); else saveLocal(); },
+    dropRoutine(id) { delete S.routines[id]; if (mode === "db") write(refs.routines.doc(id), null); else saveLocal(); },
+    exercise(e) { S.exercises[e.id] = e; if (mode === "db") write(refs.exercises.doc(e.id), e); else saveLocal(); },
+    photo(p) { S.photos[p.id] = p; if (mode === "db") write(refs.photos.doc(p.id), p); else saveLocal(); },
+    dropPhoto(id) { delete S.photos[id]; if (mode === "db") write(refs.photos.doc(id), null); else saveLocal(); },
+    active(a) {
+      S.active = a;
+      try { if (a) localStorage.setItem(LOCAL + "-active", JSON.stringify(a)); else localStorage.removeItem(LOCAL + "-active"); } catch (e) {}
+      if (mode === "db") write(refs.active, a ? { workout: a } : null);
+    },
   };
 
   async function connect() {
     const C = window.claude;
     if (!C || !C.use) { setStore(); return; }
-    const [db, user, smp] = await Promise.all([C.use("db"), C.use("user"), C.use("sample")]);
+    const [db, user, smp, ast] = await Promise.all([C.use("db"), C.use("user"), C.use("sample"), C.use("assets")]);
+    assets = ast;
     if (smp) {
       sample = smp;
       try { imagesOk = !!(await smp.limits()).images; } catch (e) { imagesOk = false; }
@@ -252,11 +311,13 @@ pre.snip { font-family: var(--font-num); font-size: 12.5px; background: var(--ch
     const id = user ? await user.id() : null;
     if (db && id) {
       const base = db.doc("data/users/" + id + "/profile");
-      refs = { profile: base, weights: base.collection("weights"), foods: base.collection("foods"), days: base.collection("days"), meals: base.collection("meals"), health: base.collection("health") };
+      refs = { profile: base, weights: base.collection("weights"), foods: base.collection("foods"), days: base.collection("days"), meals: base.collection("meals"), health: base.collection("health"),
+        workouts: base.collection("workouts"), routines: base.collection("routines"), exercises: base.collection("exercises"), photos: base.collection("photos"), active: base.collection("state").doc("active") };
       mode = "db";
-      S.profile = null; S.weights = {}; S.foods = {}; S.days = {}; S.meals = {}; S.health = {};
+      const localActive = S.active;
+      S.profile = null; S.weights = {}; S.foods = {}; S.days = {}; S.meals = {}; S.health = {}; S.workouts = {}; S.routines = {}; S.exercises = {}; S.photos = {};
       const ready = new Set();
-      const got = (k) => { ready.add(k); if (ready.size >= 6) { booting = false; render(); } };
+      const got = (k) => { ready.add(k); if (ready.size >= 11) { booting = false; render(); } };
       const fail = (e) => { if (e && e.code !== "unavailable") flash("Lost connection to your saved data. Reload to reconnect."); };
       base.onSnapshot((s) => { S.profile = s.exists ? s.data() : null; got("p"); }, fail);
       refs.weights.onSnapshot((q) => { S.weights = Object.fromEntries(q.docs.map((d) => [d.id, d.data().kg])); got("w"); }, fail);
@@ -264,6 +325,12 @@ pre.snip { font-family: var(--font-num); font-size: 12.5px; background: var(--ch
       refs.days.orderBy("date", "desc").limit(180).onSnapshot((q) => { S.days = Object.fromEntries(q.docs.map((d) => [d.id, { entries: d.data().entries || [], sent: d.data().sent || null }])); got("d"); }, fail);
       refs.meals.onSnapshot((q) => { S.meals = Object.fromEntries(q.docs.map((d) => [d.id, d.data()])); got("m"); }, fail);
       refs.health.orderBy("date", "desc").limit(120).onSnapshot((q) => { S.health = Object.fromEntries(q.docs.map((d) => { const { date, ...h } = d.data(); return [d.id, h]; })); got("h"); }, fail);
+      refs.workouts.orderBy("start", "desc").limit(400).onSnapshot((q) => { S.workouts = Object.fromEntries(q.docs.map((d) => [d.id, d.data()])); got("wo"); }, fail);
+      refs.routines.onSnapshot((q) => { S.routines = Object.fromEntries(q.docs.map((d) => [d.id, d.data()])); got("ro"); }, fail);
+      refs.exercises.onSnapshot((q) => { S.exercises = Object.fromEntries(q.docs.map((d) => [d.id, d.data()])); got("ex"); }, fail);
+      refs.photos.onSnapshot((q) => { S.photos = Object.fromEntries(q.docs.map((d) => [d.id, d.data()])); got("ph"); }, fail);
+      // The workout in progress is read once; this device's copy wins if it's newer.
+      refs.active.get().then((d) => { const remote = d.exists ? d.data().workout : null; S.active = localActive && (!remote || localActive.start >= remote.start) ? localActive : remote; }, () => { S.active = localActive; }).then(() => got("ac"));
       setStore();
       return;
     }
@@ -282,9 +349,10 @@ pre.snip { font-family: var(--font-num); font-size: 12.5px; background: var(--ch
 
   // ---------- Routing ----------
   let tab = "today", viewDate = today(), weightRange = 90, foodQuery = "", coachText = "", coachBusy = false;
-  const tabs = ["today", "weight", "foods", "plan"];
-  if (tabs.includes(location.hash.slice(1))) tab = location.hash.slice(1);
-  document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { tab = b.dataset.tab; render(); window.scrollTo(0, 0); }));
+  const tabs = ["today", "train", "body", "foods", "plan"];
+  const hashTab = location.hash.slice(1) === "weight" ? "body" : location.hash.slice(1);
+  if (tabs.includes(hashTab)) tab = hashTab;
+  document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { if (tab === b.dataset.tab && tab === "train") T.reset(); tab = b.dataset.tab; render(); window.scrollTo(0, 0); }));
 
   function flash(msg, kind = "warn") {
     const el = document.createElement("div");
@@ -303,11 +371,14 @@ pre.snip { font-family: var(--font-num); font-size: 12.5px; background: var(--ch
     const v = $("#view");
     if (booting) { v.innerHTML = `<div class="card"><p class="empty" style="margin:0">Loading your log…</p></div>`; return; }
     if (!S.profile && tab !== "plan") { v.innerHTML = setupCard(); bindSetup(); return; }
-    if (tab === "today") v.innerHTML = todayView(t);
-    else if (tab === "weight") v.innerHTML = weightView(t);
-    else if (tab === "foods") v.innerHTML = foodsView();
-    else v.innerHTML = planView(t);
+    const banner = tab !== "train" ? T.banner() : "";
+    if (tab === "today") v.innerHTML = banner + todayView(t);
+    else if (tab === "train") v.innerHTML = T.view();
+    else if (tab === "body") v.innerHTML = banner + weightView(t).replace(/<\/div>\s*$/, T.photosCard() + "</div>");
+    else if (tab === "foods") v.innerHTML = banner + foodsView();
+    else v.innerHTML = banner + planView(t);
     bind[tab] && bind[tab](t);
+    T.bindBanner();
   }
 
   // ---------- Setup / profile ----------
@@ -567,6 +638,8 @@ pre.snip { font-family: var(--font-num); font-size: 12.5px; background: var(--ch
       <line id="cross" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="var(--muted)" stroke-dasharray="3 3" visibility="hidden"/>
       <rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent" id="hit"/></svg><div class="tip" id="tip" hidden></div>`;
   }
+  bind.train = () => T.bind();
+  bind.body = () => { bind.weight(); T.bindPhotos(); };
   bind.weight = () => {
     $("#weigh").onsubmit = (e) => {
       e.preventDefault();
@@ -577,6 +650,7 @@ pre.snip { font-family: var(--font-num); font-size: 12.5px; background: var(--ch
     $("#view").querySelectorAll("[data-wdel]").forEach((b) => (b.onclick = () => { store.weight(b.dataset.wdel, null); render(); }));
     const hit = $("#hit"); if (!hit) return;
     const svg = hit.ownerSVGElement, tip = $("#tip"), cross = $("#cross");
+    if (!tip) return;
     const move = (ev) => {
       const r = svg.getBoundingClientRect(), sx = ((ev.clientX - r.left) / r.width) * 380;
       let best = chartPts[0];
@@ -637,6 +711,7 @@ pre.snip { font-family: var(--font-num); font-size: 12.5px; background: var(--ch
           <div><span>Trend weight</span><b>${c.weekChange == null ? "–" : sign(unit() === "lb" ? c.weekChange * 2.20462 : c.weekChange)}</b> ${unit()}</div>
           <div><span>Calories / day</span><b>${c.avgKcal ?? "–"}</b> <span style="display:inline">of ${c.current}</span></div>
           <div><span>Protein / day</span><b>${c.avgP ?? "–"}g</b> <span style="display:inline">of ${c.targetP}g</span></div>
+          <div><span>Workouts</span><b>${T.weekCount()}</b></div>
           ${c.avgSteps != null ? `<div><span>Steps / day</span><b>${c.avgSteps.toLocaleString("en-GB")}</b></div>` : ""}
           ${c.avgSleep != null ? `<div><span>Sleep / night</span><b>${Math.floor(c.avgSleep)}h ${String(Math.round((c.avgSleep % 1) * 60)).padStart(2, "0")}m</b></div>` : ""}
         </div>
@@ -702,10 +777,10 @@ weight: [Weight]</pre></li>
     const keep = $("#ci-keep"); if (keep) keep.onclick = () => { store.profile({ ...S.profile, kcal: S.profile.kcal || N.targets(S.profile, S.weights, S.days, today()).kcal, lastCheckIn: today() }); draft = null; render(); };
     const c = $("#coach"); if (c) c.onclick = runCoach;
     $("#backup").onclick = () => {
-      const text = JSON.stringify({ app: "fuel-log", v: 2, profile: S.profile, weights: S.weights, foods: S.foods, days: S.days, meals: S.meals, health: S.health });
+      const text = JSON.stringify({ app: "fuel-log", v: 3, profile: S.profile, weights: S.weights, foods: S.foods, days: S.days, meals: S.meals, health: S.health, workouts: S.workouts, routines: S.routines, exercises: S.exercises });
       const out = $("#backup-out");
       const show = () => { out.innerHTML = `<textarea id="backup-text" rows="4" readonly></textarea>`; const ta = $("#backup-text"); ta.value = text; ta.select(); };
-      try { navigator.clipboard.writeText(text).then(() => { out.innerHTML = `<p class="small" style="margin:0;color:var(--good)">Copied ${Object.keys(S.days).length} days, ${Object.keys(S.weights).length} weigh-ins and ${Object.keys(S.foods).length} foods.</p>`; }, show); } catch (e) { show(); }
+      try { navigator.clipboard.writeText(text).then(() => { out.innerHTML = `<p class="small" style="margin:0;color:var(--good)">Copied ${Object.keys(S.days).length} days, ${Object.keys(S.weights).length} weigh-ins, ${Object.keys(S.foods).length} foods and ${Object.keys(S.workouts).length} workouts. Photos aren't included.</p>`; }, show); } catch (e) { show(); }
     };
     $("#restore").onclick = () => {
       const out = $("#backup-out");
@@ -720,6 +795,9 @@ weight: [Weight]</pre></li>
           for (const [d, day] of Object.entries(b.days || {})) store.day(d, day);
           for (const m of Object.values(b.meals || {})) store.meal(m);
           for (const [d, h] of Object.entries(b.health || {})) store.health(d, h);
+          for (const w of Object.values(b.workouts || {})) store.workout(w);
+          for (const r of Object.values(b.routines || {})) store.routine(r);
+          for (const x of Object.values(b.exercises || {})) store.exercise(x);
           render();
         } catch (e) { out.insertAdjacentHTML("beforeend", `<p class="small" style="color:var(--warn)">That isn't a Fuel Log backup. Copy it again from the Backup section.</p>`); }
       };
@@ -757,6 +835,14 @@ weight: [Weight]</pre></li>
   }
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
   dlg.addEventListener("close", () => stopCamera());
+  function showSheet(html, bindFn) {
+    sh = null;
+    const el = $("#sheet-body");
+    el.innerHTML = html;
+    if (bindFn) bindFn(el);
+    el.querySelectorAll("[data-close]").forEach((b) => (b.onclick = () => dlg.close()));
+    if (!dlg.open) dlg.showModal();
+  }
 
   // Live scanning: ZXing reads frames from the rear camera until it finds a code.
   let camReader = null;
@@ -986,6 +1072,13 @@ weight: [Weight]</pre></li>
     }
     sh.step = "form"; drawSheet();
   }
+
+  const T = window.TrainUI({
+    S, store, $, esc, flash, uid, today, iso: N.iso, daysBetween: N.daysBetween, unit, fmtW,
+    render: () => render(), go: (t) => { tab = t; render(); },
+    sheet: showSheet, closeSheet: () => { if (dlg.open) dlg.close(); },
+    shrink: (f, m) => shrink(f, m), assets: () => assets, trend: () => N.trend(S.weights),
+  });
 
   loadLocal();
   render();

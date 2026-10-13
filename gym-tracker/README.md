@@ -36,6 +36,29 @@ losing fat or building muscle.
   Step-by-step setup is on the Plan tab. Steps and sleep feed insights such as
   falling step counts and eating more after short nights.
 
+## Training
+
+- **Workout logging**: start an empty workout or a routine. Each exercise shows
+  last time's sets, and the weight and reps to aim for (double progression: add
+  reps until every set reaches the top of the range, then add weight).
+  Tap ✓ with blank boxes to accept the suggestion. Set types: working, warm-up,
+  drop and failure. Warm-ups don't count toward records.
+- **Rest timer** after each ticked set (per exercise, adjustable), with sound and
+  vibration where supported. The screen stays on during a workout where the
+  phone allows it.
+- **390 exercises** (`exercises.js`) across 20 muscle groups and 14 kinds of
+  equipment, plus your own custom exercises. Weight × reps, bodyweight (with
+  optional added weight), assisted, timed and cardio exercises are all supported.
+- **Strength progress**: estimated one-rep max (Epley), heaviest weight and best
+  set per exercise, with charts and history. PRs are flagged as you lift and
+  listed when you finish.
+- **Sets per muscle** over the last 7 days against the 10–20 set range for growth.
+- **Routines**: build them, or save any finished workout as one; repeat past workouts.
+- **Progress photos** on the Body tab: front, side and back, with a side-by-side
+  comparison of any two dates showing the trend weight change between them.
+  Stored privately with the artifact in the Claude version, and in IndexedDB on
+  the phone in the installed app (not in the text backup).
+
 ## Running it
 
 **As a Claude artifact** (how it's published): your log is saved to your

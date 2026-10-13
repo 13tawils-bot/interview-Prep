@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: 22
       - name: Test
-        run: node --test gym-tracker/nutrition.test.js outfit-builder/engine.test.js
+        run: node --test gym-tracker/nutrition.test.js gym-tracker/workouts.test.js outfit-builder/engine.test.js
       - name: Build
         run: node site/build.mjs
       - name: Publish to gh-pages
