@@ -67,7 +67,7 @@
     const mx = xs.reduce((a, b) => a + b) / n, my = ys.reduce((a, b) => a + b) / n;
     let num = 0, den = 0;
     for (let i = 0; i < n; i++) { num += (xs[i] - mx) * (ys[i] - my); den += (xs[i] - mx) ** 2; }
-    return r1((num / den) * 7 * 100) / 100;
+    return Math.round((num / den) * 7 * 100) / 100;
   }
 
   function latestWeight(weights) {
@@ -103,11 +103,12 @@
     let adjust = (kg * ratePct * KCAL_PER_KG) / 7;
     adjust = Math.max(-750, Math.min(500, adjust));
     const floor = profile.sex === "male" ? 1500 : 1200;
-    const kcal = Math.max(floor, Math.round((maintenance + adjust) / 10) * 10);
+    const recommended = Math.max(floor, Math.round((maintenance + adjust) / 10) * 10);
+    const kcal = profile.kcal ? Math.max(floor, profile.kcal) : recommended;
     const p = Math.round(goal.proteinPerKg * kg);
     const f = Math.round((kcal * 0.27) / 9);
     const c = Math.max(0, Math.round((kcal - p * 4 - f * 9) / 4));
-    return { kcal, p, c, f, fibre: 30, maintenance, measured, estimate, weeklyTargetKg: Math.round(kg * ratePct * 100) / 100, kg };
+    return { kcal, recommended, p, c, f, fibre: 30, maintenance, measured, estimate, weeklyTargetKg: Math.round(kg * ratePct * 100) / 100, kg };
   }
 
   // How you usually eat a food: average logged grams, meals, frequency.
@@ -159,7 +160,7 @@
   }
 
   // Patterns in the last two weeks worth acting on.
-  function insights({ foods, days, weights, today, target, goal }) {
+  function insights({ foods, days, weights, today, target, goal, health = {} }) {
     const out = [];
     const start = addDays(today, -14);
     const logged = Object.entries(days).filter(([d, day]) => d >= start && d < today && (day.entries || []).length);
@@ -209,7 +210,190 @@
         else out.push({ kind: "good", text: `Gaining ${rate} kg a week on trend, in the lean-gain range.` });
       } else if (Math.abs(pct) > 0.25) out.push({ kind: "warn", text: `Trend weight is moving ${rate} kg a week while you're aiming to maintain.` });
     }
+    return out.concat(healthInsights({ days, weights, health, today }));
+  }
+
+  const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+  const fmtSleep = (h) => `${Math.floor(h)}h ${String(Math.round((h % 1) * 60)).padStart(2, "0")}m`;
+
+  // Steps and sleep from Apple Health, read against what you ate.
+  function healthInsights({ days, weights, health, today }) {
+    const out = [];
+    const range = (a, b) => Object.entries(health).filter(([d]) => d >= addDays(today, -a) && d < addDays(today, -b));
+    const stepsNow = avg(range(7, 0).map(([, h]) => h.steps).filter((x) => x != null));
+    const stepsBefore = avg(range(14, 7).map(([, h]) => h.steps).filter((x) => x != null));
+    if (stepsNow != null && stepsBefore != null && range(7, 0).length >= 3 && range(14, 7).length >= 3) {
+      const diff = Math.round(stepsNow - stepsBefore);
+      const kg = latestWeight(weights) || 75;
+      const kcal = Math.round((Math.abs(diff) * 0.04 * kg) / 70 / 10) * 10; // ~0.04 kcal per step at 70 kg
+      if (diff <= -1500) out.push({ kind: "warn", text: `Steps averaged ${Math.round(stepsNow).toLocaleString("en-GB")} this week, down ${Math.abs(diff).toLocaleString("en-GB")} on last week. That's about ${kcal} kcal a day less burned, enough to slow a cut.` });
+      else if (diff >= 1500) out.push({ kind: "good", text: `Steps are up ${diff.toLocaleString("en-GB")} a day on last week (about ${kcal} kcal more burned).` });
+    }
+    const sleep = range(14, -1).map(([d, h]) => [d, h.sleepH]).filter(([, x]) => x != null);
+    if (sleep.length >= 5) {
+      const a = avg(sleep.map(([, x]) => x));
+      if (a < 6.5) out.push({ kind: "warn", text: `You've averaged ${fmtSleep(a)} of sleep. Under 7 hours tends to raise hunger and slow recovery from training.` });
+      // Sleep logged on day D is the night before D: compare that day's eating.
+      const short = [], ok = [];
+      for (const [d, h] of sleep) {
+        const e = days[d]?.entries;
+        if (!e || e.length < 2 || d >= today) continue;
+        (h < 6.5 ? short : ok).push(totals(e).kcal);
+      }
+      if (short.length >= 3 && ok.length >= 3) {
+        const gap = Math.round((avg(short) - avg(ok)) / 10) * 10;
+        if (gap >= 150) out.push({ kind: "warn", text: `After nights under 6½ hours you ate ${gap} kcal more on average (${short.length} days). Plan a high-protein breakfast for those mornings.` });
+      }
+    }
     return out;
+  }
+
+  // Read the text the "Health to Fuel Log" shortcut copies. Tolerates units,
+  // thousands separators and durations written several ways.
+  function parseHealth(text, today) {
+    if (!text || !/fuel ?log/i.test(text)) return null;
+    const get = (key) => { const m = text.match(new RegExp("^\\s*" + key + "\\s*[:=]\\s*(.+)$", "im")); return m ? m[1].trim() : null; };
+    const num = (v) => { if (v == null) return null; const m = v.replace(/,(?=\d{3}\b)/g, "").match(/-?\d+(\.\d+)?/); return m ? Number(m[0]) : null; };
+    const out = { date: today };
+    const d = get("date");
+    if (d) {
+      const iso = d.match(/\d{4}-\d{2}-\d{2}/);
+      const uk = d.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (iso) out.date = iso[0];
+      else if (uk) out.date = `${uk[3]}-${uk[2].padStart(2, "0")}-${uk[1].padStart(2, "0")}`;
+    }
+    const steps = num(get("steps")); if (steps != null) out.steps = Math.round(steps);
+    const active = num(get("active")); if (active != null) out.active = Math.round(/kj/i.test(get("active")) ? active / 4.184 : active);
+    const sl = get("sleep");
+    if (sl) {
+      const h = sl.match(/(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours)\b/i), m = sl.match(/(\d+)\s*(m|min|mins|minutes)\b/i);
+      let hours = null;
+      if (h || m) hours = (h ? Number(h[1]) : 0) + (m ? Number(m[1]) / 60 : 0);
+      else if (sl.includes(":")) { const [a, b] = sl.split(":").map(Number); hours = a + b / 60; }
+      else { const n = num(sl); if (n != null) hours = n > 1440 ? n / 3600 : n > 24 ? n / 60 : n; }
+      if (hours != null && hours > 0 && hours < 20) out.sleepH = Math.round(hours * 100) / 100;
+    }
+    const wt = get("weight");
+    if (wt) {
+      let w = num(wt);
+      if (w != null) {
+        if (/st/i.test(wt)) { const lb = wt.match(/st\D*(\d+(?:\.\d+)?)/i); w = w * 6.35029 + (lb ? Number(lb[1]) * 0.453592 : 0); }
+        else if (/lb/i.test(wt)) w = w * 0.453592;
+        if (w > 25 && w < 350) out.weight = Math.round(w * 10) / 10;
+      }
+    }
+    return Object.keys(out).length > 1 ? out : null;
+  }
+
+  // The rest of today as one to three foods you already eat: hit the protein
+  // you still need within the calories you have left.
+  function planRest({ foods, days, today, target, goal, meal, limit = 3 }) {
+    const eaten = totals(days[today]?.entries);
+    const rem = { kcal: target.kcal - eaten.kcal, p: target.p - eaten.p };
+    if (rem.kcal < 150) return { remaining: rem, plans: [] };
+    const hab = habits(days, today);
+    const pool = Object.values(foods)
+      .map((food) => ({ food, h: hab[food.id], base: hab[food.id]?.avgGrams || food.servingG || 100 }))
+      .filter((x) => x.food.per100.kcal > 0)
+      .map((x) => ({ ...x, rank: ((x.food.per100.p * 4) / x.food.per100.kcal) * 2 + (x.h ? Math.log2(1 + x.h.uses) * 0.5 : 0) }))
+      .sort((a, b) => b.rank - a.rank).slice(0, 14);
+    const opts = [];
+    for (const x of pool) for (const m of [0.5, 1, 1.5, 2]) {
+      const grams = Math.max(5, Math.round((x.base * m) / 5) * 5);
+      const n = portion(x.food, grams);
+      // Foods you only ever eat at breakfast don't belong in an evening plan.
+      const offMeal = meal && x.h && !x.h.meals[meal] && Object.keys(x.h.meals).length === 1 && x.h.meals.breakfast ? 1 : 0;
+      if (n.kcal <= rem.kcal) opts.push({ ...x, grams, n, usual: m === 1, big: m === 2, offMeal });
+    }
+    const ideal = goal === "gain" ? 1 : 0.9;
+    const plans = [];
+    const consider = (items) => {
+      const k = items.reduce((a, i) => a + i.n.kcal, 0), p = items.reduce((a, i) => a + i.n.p, 0);
+      if (k > rem.kcal * 1.05 + 30) return;
+      const pHit = rem.p > 5 ? Math.min(p, rem.p) / rem.p : 1;
+      const s = 5 * pHit - 3 * Math.abs(k / rem.kcal - ideal) + items.reduce((a, i) => a + (i.h ? Math.log2(1 + i.h.uses) * 0.3 : 0) - (i.usual ? 0 : 0.3) - (i.big ? 0.4 : 0) - i.offMeal * 1.2, 0) - 0.4 * (items.length - 1);
+      plans.push({ items: items.map((i) => ({ food: i.food, grams: i.grams, n: i.n })), kcal: Math.round(k), p: Math.round(p * 10) / 10, score: s });
+    };
+    for (let a = 0; a < opts.length; a++) {
+      consider([opts[a]]);
+      for (let b = a + 1; b < opts.length; b++) {
+        if (opts[b].food.id === opts[a].food.id) continue;
+        consider([opts[a], opts[b]]);
+        for (let c = b + 1; c < opts.length; c++) {
+          if (opts[c].food.id === opts[a].food.id || opts[c].food.id === opts[b].food.id) continue;
+          consider([opts[a], opts[b], opts[c]]);
+        }
+      }
+    }
+    plans.sort((x, y) => y.score - x.score);
+    const picked = [], seen = new Set();
+    for (const pl of plans) {
+      if (picked.length && pl.score < picked[0].score - 2) break; // only offer genuinely good alternatives
+      const key = pl.items.map((i) => i.food.id).sort().join("|");
+      const lead = pl.items.slice().sort((a, b) => b.n.p - a.n.p)[0].food.id;
+      if (seen.has(key) || picked.some((q) => q.lead === lead)) continue;
+      seen.add(key); picked.push({ ...pl, lead });
+      if (picked.length >= limit) break;
+    }
+    return { remaining: rem, plans: picked };
+  }
+
+  // Weekly review: how the week went and whether to move the calorie target.
+  function checkIn({ profile, weights, days, health = {}, today }) {
+    const from = addDays(today, -7);
+    const logged = Object.entries(days).filter(([d, day]) => d >= from && d < today && (day.entries || []).length >= 2).map(([, day]) => totals(day.entries));
+    const t = targets(profile, weights, days, today);
+    const current = t.kcal;
+    const rate = weeklyChange(weights, 14);
+    const tr = trend(weights);
+    const at = (d) => { let v = null; for (const p of tr) if (p.date <= d) v = p.trend; return v; };
+    const a = at(addDays(today, -8)), b = at(addDays(today, -1));
+    const hs = Object.entries(health).filter(([d]) => d >= from && d < today).map(([, h]) => h);
+    const res = {
+      from, to: addDays(today, -1), daysLogged: logged.length,
+      avgKcal: logged.length ? Math.round(avg(logged.map((x) => x.kcal))) : null,
+      avgP: logged.length ? Math.round(avg(logged.map((x) => x.p))) : null,
+      weekChange: a != null && b != null ? Math.round((b - a) * 100) / 100 : null,
+      rate, targetRate: t.weeklyTargetKg, current, targetP: t.p,
+      avgSteps: hs.some((h) => h.steps != null) ? Math.round(avg(hs.map((h) => h.steps).filter((x) => x != null))) : null,
+      avgSleep: hs.some((h) => h.sleepH != null) ? Math.round(avg(hs.map((h) => h.sleepH).filter((x) => x != null)) * 10) / 10 : null,
+      proposed: null, reason: "",
+    };
+    const floor = profile.sex === "male" ? 1500 : 1200;
+    if (logged.length < 4) { res.reason = "Log food on at least 4 days this week for a reliable check-in. Targets stay as they are."; return res; }
+    let proposed = current, why = "";
+    if (t.measured && Math.abs(t.recommended - current) >= 75) {
+      proposed = t.recommended;
+      why = `Your measured maintenance is ${t.measured.kcal} kcal, from ${t.measured.daysLogged} logged days and your weight trend.`;
+    } else if (!t.measured && rate != null) {
+      const tgt = t.weeklyTargetKg;
+      if (profile.goal === "lose" && rate > tgt * 0.5) { proposed = current - 150; why = `You lost ${Math.abs(rate)} kg a week against a ${Math.abs(tgt)} kg target.`; }
+      else if (profile.goal === "lose" && rate < tgt * 1.75) { proposed = current + 150; why = `You're losing ${Math.abs(rate)} kg a week, faster than the ${Math.abs(tgt)} kg target. A little more food protects muscle.`; }
+      else if (profile.goal === "gain" && rate < tgt * 0.5) { proposed = current + 150; why = `Weight moved ${rate} kg a week against a +${tgt} kg target.`; }
+      else if (profile.goal === "gain" && rate > tgt * 2) { proposed = current - 150; why = `You gained ${rate} kg a week, faster than muscle can be built.`; }
+      else if (profile.goal === "maintain" && Math.abs(rate) > 0.25) { proposed = current - Math.sign(rate) * 150; why = `Weight moved ${rate} kg a week while maintaining.`; }
+    }
+    // Change gradually: at most 200 kcal a week.
+    proposed = Math.max(floor, Math.round(Math.max(current - 200, Math.min(current + 200, proposed)) / 10) * 10);
+    // Logging well under target while weight holds steady usually means food is going unlogged.
+    if (proposed < current && res.avgKcal != null && res.avgKcal < current - 400 && (rate == null || Math.abs(rate) < Math.abs(t.weeklyTargetKg) * 0.5)) {
+      res.reason = `You logged ${res.avgKcal} kcal a day, well under your ${current} target, yet your weight barely moved. That usually means some food or drink isn't being logged. Log everything for a week before changing targets.`;
+      return res;
+    }
+    // Eating well over target explains a stall better than the target does.
+    if (proposed < current && profile.goal === "lose" && res.avgKcal > current + 150) {
+      res.reason = `You averaged ${res.avgKcal} kcal against a ${current} target. Eat to the current target for another week before lowering it.`;
+      return res;
+    }
+    if (proposed !== current) { res.proposed = proposed; res.reason = why; }
+    else res.reason = "You're on track. Keep the same targets this week.";
+    return res;
+  }
+
+  function checkInDue(profile, days, today) {
+    if (profile.lastCheckIn) return daysBetween(profile.lastCheckIn, today) >= 7;
+    const first = Object.keys(days).sort()[0];
+    return !!first && daysBetween(first, today) >= 7;
   }
 
   // Map an Open Food Facts product to a library food.
@@ -225,5 +409,5 @@
     };
   }
 
-  return { GOALS, ACTIVITY, MEALS, KCAL_PER_KG, iso, addDays, daysBetween, mealForHour, portion, totals, trend, weeklyChange, latestWeight, measuredMaintenance, estimatedMaintenance, targets, habits, suggest, insights, fromOpenFoodFacts };
+  return { GOALS, ACTIVITY, MEALS, KCAL_PER_KG, iso, addDays, daysBetween, mealForHour, portion, totals, trend, weeklyChange, latestWeight, measuredMaintenance, estimatedMaintenance, targets, habits, suggest, insights, healthInsights, parseHealth, planRest, checkIn, checkInDue, fromOpenFoodFacts };
 });

@@ -19,6 +19,22 @@ losing fat or building muscle.
   low-protein foods with a leaner swap you already eat, and whether your trend
   matches your goal (with a concrete calorie adjustment if not).
 - **Ask Claude**: sends a two-week summary for specific, food-by-food advice.
+- **Common foods**: about 100 unpackaged UK foods (`commonfoods.js`, typical
+  values, carbs excluding fibre) with real-world portions: 1 medium egg, 1 slice,
+  1 banana. They join your library the first time you log them.
+- **Saved meals and copy yesterday**: save any meal section as a named meal and log
+  it in one tap; empty sections offer yesterday's version.
+- **Plan the rest of today**: one to three foods you already eat, portioned to hit
+  your remaining protein within your remaining calories.
+- **Weekly check-in**: days logged, trend change, average calories, protein,
+  steps and sleep, plus a proposed calorie change (at most 200 kcal a week) that
+  you accept or keep. It won't cut calories when the log suggests over-eating or
+  missing entries.
+- **Apple Health via Shortcuts**: a *Health to Fuel Log* shortcut copies steps,
+  active energy, last night's sleep and weight for the app to import. A *Fuel Log
+  to Health* shortcut logs eaten calories and macros, sending only what's new.
+  Step-by-step setup is on the Plan tab. Steps and sleep feed insights such as
+  falling step counts and eating more after short nights.
 
 ## Running it
 

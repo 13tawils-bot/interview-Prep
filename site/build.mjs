@@ -41,9 +41,11 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catc
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 </script>`));
 writeFileSync(join(gym, "nutrition.js"), nutrition);
+const common = readFileSync(join(root, "gym-tracker/commonfoods.js"), "utf8");
+writeFileSync(join(gym, "commonfoods.js"), common);
 cpSync(join(root, "gym-tracker/pwa/icons"), join(gym, "icons"), { recursive: true });
 cpSync(join(root, "gym-tracker/pwa/manifest.webmanifest"), join(gym, "manifest.webmanifest"));
-const version = createHash("sha256").update(gymSrc + nutrition + readFileSync(join(root, "gym-tracker/pwa/sw.js"))).digest("hex").slice(0, 10);
+const version = createHash("sha256").update(gymSrc + nutrition + common + readFileSync(join(root, "gym-tracker/pwa/sw.js"))).digest("hex").slice(0, 10);
 writeFileSync(join(gym, "sw.js"), readFileSync(join(root, "gym-tracker/pwa/sw.js"), "utf8").replace("__VERSION__", version));
 
 // Full Look

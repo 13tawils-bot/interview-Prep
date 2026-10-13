@@ -141,12 +141,29 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
 .result { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; text-align: left; border: 0; border-bottom: 1px solid var(--line); background: none; padding: 10px 2px; }
 .status { font-size: 14px; padding: 10px 12px; border-radius: 8px; background: var(--chalk); }
 .status.warn { color: var(--warn); }
+.status.good { color: var(--good); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips button { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 5px 11px; font-size: 13.5px; }
 .preview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; text-align: center; }
 .preview div { background: var(--chalk); border-radius: 8px; padding: 8px 4px; }
 .preview b { display: block; font-family: var(--font-display); font-size: 1.4rem; line-height: 1; }
 .preview span { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.health { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13.5px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 10px; align-items: center; }
+.health b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.banner { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--ink); color: var(--card); border-radius: 10px; padding: 12px 14px; border: 0; width: 100%; text-align: left; }
+.banner strong { font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; font-size: 1.05rem; }
+.plan { border-top: 1px solid var(--line); padding: 10px 0; display: grid; gap: 6px; }
+.plan ul { margin: 0; padding-left: 18px; font-size: 14px; }
+.meal-actions { display: flex; gap: 6px; align-items: center; }
+.tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 8px 2px 2px; }
+.ci { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.ci div { background: var(--chalk); border-radius: 8px; padding: 8px 10px; }
+.ci span { display: block; font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.ci b { font-family: var(--font-display); font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+details.how summary { cursor: pointer; font-weight: 600; }
+details.how ol { padding-left: 20px; margin: 8px 0; display: grid; gap: 6px; font-size: 14px; }
+details.how code { font-family: var(--font-num); font-size: 12.5px; background: var(--chalk); padding: 1px 4px; border-radius: 4px; }
+pre.snip { font-family: var(--font-num); font-size: 12.5px; background: var(--chalk); padding: 8px 10px; border-radius: 8px; margin: 4px 0; white-space: pre-wrap; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 @media (max-width: 380px) { .grid3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>
@@ -169,6 +186,7 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
 <dialog id="sheet" aria-label="Add food"><div class="sheet" id="sheet-body"></div></dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script src="commonfoods.js"></script>
 <script src="nutrition.js"></script>
 <script>
 (function () {
@@ -180,7 +198,9 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
 
   // ---------- State and storage ----------
   // Saved to your Claude account when this runs as a Claude artifact, otherwise to this browser.
-  const S = { profile: null, weights: {}, foods: {}, days: {} };
+  const S = { profile: null, weights: {}, foods: {}, days: {}, meals: {}, health: {} };
+  const COMMON = window.COMMON_FOODS || [];
+  const inClaude = !!(window.claude && window.claude.use);
   const LOCAL = "fuel-log-v1";
   let mode = "local", refs = null, sample = null, imagesOk = false;
   let booting = !!(window.claude && window.claude.use); // wait for saved data before showing setup
@@ -191,6 +211,7 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
 
   function loadLocal() {
     try { Object.assign(S, JSON.parse(localStorage.getItem(LOCAL) || "{}")); } catch (e) {}
+    S.meals = S.meals || {}; S.health = S.health || {};
   }
   function saveLocal() {
     try { localStorage.setItem(LOCAL, JSON.stringify(S)); } catch (e) {}
@@ -211,9 +232,13 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
     food(f) { S.foods[f.id] = f; if (mode === "db") write(refs.foods.doc(f.id), f); else saveLocal(); },
     dropFood(id) { delete S.foods[id]; if (mode === "db") write(refs.foods.doc(id), null); else saveLocal(); },
     day(date, day) {
-      if (!day.entries.length) delete S.days[date]; else S.days[date] = day;
-      if (mode === "db") write(refs.days.doc(date), day.entries.length ? { date, entries: day.entries } : null); else saveLocal();
+      const keep = day.entries.length || day.sent;
+      if (!keep) delete S.days[date]; else S.days[date] = day;
+      if (mode === "db") write(refs.days.doc(date), keep ? { date, entries: day.entries, ...(day.sent ? { sent: day.sent } : {}) } : null); else saveLocal();
     },
+    meal(m) { S.meals[m.id] = m; if (mode === "db") write(refs.meals.doc(m.id), m); else saveLocal(); },
+    dropMeal(id) { delete S.meals[id]; if (mode === "db") write(refs.meals.doc(id), null); else saveLocal(); },
+    health(date, h) { S.health[date] = h; if (mode === "db") write(refs.health.doc(date), { date, ...h }); else saveLocal(); },
   };
 
   async function connect() {
@@ -227,16 +252,18 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
     const id = user ? await user.id() : null;
     if (db && id) {
       const base = db.doc("data/users/" + id + "/profile");
-      refs = { profile: base, weights: base.collection("weights"), foods: base.collection("foods"), days: base.collection("days") };
+      refs = { profile: base, weights: base.collection("weights"), foods: base.collection("foods"), days: base.collection("days"), meals: base.collection("meals"), health: base.collection("health") };
       mode = "db";
-      S.profile = null; S.weights = {}; S.foods = {}; S.days = {};
+      S.profile = null; S.weights = {}; S.foods = {}; S.days = {}; S.meals = {}; S.health = {};
       const ready = new Set();
-      const got = (k) => { ready.add(k); if (ready.size === 4) { booting = false; render(); } };
+      const got = (k) => { ready.add(k); if (ready.size >= 6) { booting = false; render(); } };
       const fail = (e) => { if (e && e.code !== "unavailable") flash("Lost connection to your saved data. Reload to reconnect."); };
       base.onSnapshot((s) => { S.profile = s.exists ? s.data() : null; got("p"); }, fail);
       refs.weights.onSnapshot((q) => { S.weights = Object.fromEntries(q.docs.map((d) => [d.id, d.data().kg])); got("w"); }, fail);
       refs.foods.onSnapshot((q) => { S.foods = Object.fromEntries(q.docs.map((d) => [d.id, d.data()])); got("f"); }, fail);
-      refs.days.orderBy("date", "desc").limit(180).onSnapshot((q) => { S.days = Object.fromEntries(q.docs.map((d) => [d.id, { entries: d.data().entries || [] }])); got("d"); }, fail);
+      refs.days.orderBy("date", "desc").limit(180).onSnapshot((q) => { S.days = Object.fromEntries(q.docs.map((d) => [d.id, { entries: d.data().entries || [], sent: d.data().sent || null }])); got("d"); }, fail);
+      refs.meals.onSnapshot((q) => { S.meals = Object.fromEntries(q.docs.map((d) => [d.id, d.data()])); got("m"); }, fail);
+      refs.health.orderBy("date", "desc").limit(120).onSnapshot((q) => { S.health = Object.fromEntries(q.docs.map((d) => { const { date, ...h } = d.data(); return [d.id, h]; })); got("h"); }, fail);
       setStore();
       return;
     }
@@ -259,9 +286,9 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
   if (tabs.includes(location.hash.slice(1))) tab = location.hash.slice(1);
   document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { tab = b.dataset.tab; render(); window.scrollTo(0, 0); }));
 
-  function flash(msg) {
+  function flash(msg, kind = "warn") {
     const el = document.createElement("div");
-    el.className = "status warn"; el.setAttribute("role", "status"); el.textContent = msg;
+    el.className = "status " + kind; el.setAttribute("role", "status"); el.textContent = msg;
     $("#view").prepend(el); setTimeout(() => el.remove(), 6000);
   }
 
@@ -320,7 +347,9 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
     f.addEventListener("submit", (e) => {
       e.preventDefault(); readDraft();
       const first = !S.profile, latest = N.latestWeight(S.weights);
-      store.profile({ ...draft });
+      const next = { ...draft, kcal: null };
+      next.kcal = N.targets(next, { ...S.weights, [today()]: draft.startWeight }, S.days, today()).recommended;
+      store.profile(next);
       // Record a weigh-in only when the weight was actually entered or changed here.
       if (first || latest == null || Math.abs(draft.startWeight - latest) >= 0.05) store.weight(today(), draft.startWeight);
       draft = null; after && after(); render();
@@ -354,7 +383,11 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
     const meals = N.MEALS.map((m) => {
       const es = day.entries.map((e, i) => ({ e, i })).filter(({ e }) => e.meal === m);
       const mt = N.totals(es.map((x) => x.e));
-      return `<div class="meal"><div class="meal-head"><h3>${m}</h3><span class="small muted num">${es.length ? mt.kcal + " kcal" : ""}</span></div>
+      const yest = (S.days[N.addDays(viewDate, -1)]?.entries || []).filter((e) => e.meal === m);
+      const actions = savingMeal === m
+        ? `<form class="meal-actions" data-savemeal="${m}"><input type="text" id="meal-name" value="My ${m}" aria-label="Meal name" style="width:9.5rem;padding:4px 8px"><button class="btn small" type="submit">Save</button></form>`
+        : `<div class="meal-actions">${es.length ? `<span class="small muted num">${mt.kcal} kcal</span><button class="btn ghost small" type="button" data-savem="${m}">Save meal</button>` : yest.length ? `<button class="btn ghost small" type="button" data-copy="${m}">Copy yesterday</button>` : ""}</div>`;
+      return `<div class="meal"><div class="meal-head"><h3>${m}</h3>${actions}</div>
         ${es.length ? es.map(({ e, i }) => `<div class="entry"><div><div class="nm">${esc(e.name)}</div><div class="sub">${e.grams}g · ${e.p}g protein</div></div><span class="num small">${e.kcal}</span><button class="x" type="button" data-del="${i}" aria-label="Remove ${esc(e.name)}">×</button></div>`).join("") : `<div class="empty small" style="padding:6px 0">Nothing yet</div>`}
       </div>`;
     }).join("");
@@ -368,13 +401,29 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
             <div class="why">${it.n.kcal} kcal · ${it.n.p}g protein${it.why.length ? " · " + esc(it.why.join(", ")) : ""}</div></div>
             <button class="btn small" type="button" data-sugg="${i}">Add</button></div>`).join("")
         : `<p class="empty">Suggestions come from foods you've logged. Add a few meals and they'll appear here, ranked for your goal.</p>`;
-      sugg = `<section class="card"><div class="row spread"><h2>Eat next</h2><span class="small muted">${Math.max(0, Math.round(s.remaining.p))}g protein left</span></div>${body}</section>`;
+      let plansHtml = "";
+      if (planOpen) {
+        const pr = N.planRest({ foods: S.foods, days: S.days, today: viewDate, target: t, goal: S.profile.goal, meal: N.mealForHour(new Date().getHours()) });
+        lastPlans = pr.plans;
+        plansHtml = pr.plans.length ? pr.plans.map((pl, i) => `<div class="plan"><div class="row spread"><strong class="num">${pl.kcal} kcal · ${pl.p}g protein</strong><button class="btn small" type="button" data-plan="${i}">Log all</button></div>
+          <ul>${pl.items.map((it) => `<li>${esc(it.food.name)} <span class="pill">${it.grams}g</span></li>`).join("")}</ul></div>`).join("")
+          : `<p class="empty">Not enough calories left, or too few foods logged, to plan the rest of today.</p>`;
+      }
+      const showPlan = !s.note && Object.keys(S.foods).length >= 2;
+      sugg = `<section class="card"><div class="row spread"><h2>Eat next</h2><span class="small muted">${Math.max(0, Math.round(s.remaining.p))}g protein left</span></div>${body}
+        ${showPlan ? `<button class="btn ${planOpen ? "ghost" : ""} wide" type="button" id="plan-toggle">${planOpen ? "Hide plans" : "Plan the rest of today"}</button>${plansHtml}` : ""}</section>`;
       lastSuggestions = s.items;
     }
 
     const weighCard = isToday && S.weights[viewDate] == null ? `<section class="card"><form class="row" id="quick-weigh"><label class="field" style="flex:1"><span>Morning weigh-in (${unit()})</span><input id="qw" type="number" step="0.1" inputmode="decimal" placeholder="${fmtW(N.latestWeight(S.weights))}"></label><button class="btn" type="submit" style="align-self:end">Save</button></form></section>` : "";
 
+    const h = S.health[viewDate];
+    const sentAll = day.sent && ["kcal", "p", "c", "f"].every((k) => (day.sent[k] || 0) >= tot[k] - 0.5);
+    const healthRow = `<div class="health">${h ? [h.steps != null && `<span><b>${h.steps.toLocaleString("en-GB")}</b> steps</span>`, h.active != null && `<span><b>${h.active}</b> active kcal</span>`, h.sleepH != null && `<span><b>${Math.floor(h.sleepH)}h ${String(Math.round((h.sleepH % 1) * 60)).padStart(2, "0")}m</b> sleep</span>`].filter(Boolean).join("") : `<span>Steps and sleep from Apple Health</span>`}
+      <span style="margin-left:auto" class="row">${isToday ? `<button class="link small" type="button" id="h-import">${h ? "Update" : "Import"}</button>` : ""}${!inClaude && day.entries.length ? `<button class="link small" type="button" id="h-send">${sentAll ? "Sent to Health ✓" : "Send to Health"}</button>` : ""}</span></div>`;
+    const due = isToday && N.checkInDue(S.profile, S.days, today());
     return `<div class="app" style="gap:14px">
+      ${due ? `<button class="banner" type="button" id="ci-go"><span><strong>Weekly check-in</strong><br><span class="small">See how the week went and adjust targets</span></span><span aria-hidden="true">›</span></button>` : ""}
       <div class="daynav"><button type="button" id="prev" aria-label="Previous day">‹</button><h2>${label}</h2><button type="button" id="next" aria-label="Next day" ${isToday ? "disabled" : ""}>›</button></div>
       <section class="card">
         <div class="row spread" style="align-items:flex-end">
@@ -387,13 +436,14 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
           ${macroRow("Fat", "var(--fat)", tot.f, t.f)}
           ${macroRow("Fibre", "var(--fibre)", tot.fibre, t.fibre)}
         </div>
+        ${healthRow}
       </section>
       ${weighCard}
       ${sugg}
       <section class="card">${meals}</section>
     </div>`;
   }
-  let lastSuggestions = [];
+  let lastSuggestions = [], lastPlans = [], planOpen = false, savingMeal = null;
   const bind = {};
   bind.today = () => {
     $("#prev").onclick = () => { viewDate = N.addDays(viewDate, -1); render(); };
@@ -407,14 +457,54 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
       const it = lastSuggestions[Number(b.dataset.sugg)];
       logFood(it.food, it.grams, N.mealForHour(new Date().getHours()));
     }));
+    const pt = $("#plan-toggle"); if (pt) pt.onclick = () => { planOpen = !planOpen; render(); };
+    $("#view").querySelectorAll("[data-plan]").forEach((b) => (b.onclick = () => {
+      const pl = lastPlans[Number(b.dataset.plan)], meal = N.mealForHour(new Date().getHours());
+      logMany(pl.items.map((it) => ({ food: it.food, grams: it.grams, meal })));
+      planOpen = false; render();
+    }));
+    $("#view").querySelectorAll("[data-savem]").forEach((b) => (b.onclick = () => { savingMeal = b.dataset.savem; render(); const i = $("#meal-name"); i.focus(); i.select(); }));
+    $("#view").querySelectorAll("[data-savemeal]").forEach((f) => (f.onsubmit = (e) => {
+      e.preventDefault();
+      const m = f.dataset.savemeal, name = $("#meal-name").value.trim() || "My " + m;
+      const items = (S.days[viewDate]?.entries || []).filter((x) => x.meal === m).map((x) => ({ foodId: x.foodId, name: x.name, grams: x.grams, per100: (S.foods[x.foodId] || {}).per100 || null }));
+      store.meal({ id: "m-" + uid(), name, meal: m, items });
+      savingMeal = null; render(); flash(`Saved "${name}". Find it under Add food.`, "good");
+    }));
+    $("#view").querySelectorAll("[data-copy]").forEach((b) => (b.onclick = () => {
+      const m = b.dataset.copy;
+      const items = (S.days[N.addDays(viewDate, -1)]?.entries || []).filter((x) => x.meal === m);
+      const day = { ...(S.days[viewDate] || {}), entries: (S.days[viewDate]?.entries || []).concat(items.map((x) => ({ ...x, t: Date.now() }))) };
+      store.day(viewDate, day); render();
+    }));
+    const ci = $("#ci-go"); if (ci) ci.onclick = () => { tab = "plan"; render(); window.scrollTo(0, 0); };
+    const hi = $("#h-import"); if (hi) hi.onclick = () => openSheet({ step: "health" });
+    const hs = $("#h-send"); if (hs) hs.onclick = () => sendToHealth(viewDate);
     const qw = $("#quick-weigh");
     if (qw) qw.onsubmit = (e) => { e.preventDefault(); const v = Number($("#qw").value); if (v > 0) { store.weight(today(), Math.round(toKg(v) * 10) / 10); render(); } };
   };
 
-  function logFood(food, grams, meal) {
-    const day = { entries: (S.days[viewDate]?.entries || []).slice() };
-    day.entries.push({ foodId: food.id, name: food.name, grams, meal, t: Date.now(), ...N.portion(food, grams) });
+  function logFood(food, grams, meal) { logMany([{ food, grams, meal }]); }
+  function logMany(list) {
+    const day = { ...(S.days[viewDate] || {}), entries: (S.days[viewDate]?.entries || []).slice() };
+    for (const { food, grams, meal } of list) {
+      if (!S.foods[food.id]) store.food(food); // common foods join your library on first use
+      day.entries.push({ foodId: food.id, name: food.name, grams, meal, t: Date.now(), ...N.portion(food, grams) });
+    }
     store.day(viewDate, day);
+    render();
+  }
+
+  // Apple Health, via the "Fuel Log to Health" shortcut. Only what hasn't been sent yet goes, so resending never doubles up.
+  function sendToHealth(date) {
+    const day = S.days[date] || { entries: [] };
+    const tot = N.totals(day.entries), sent = day.sent || {};
+    const d = {};
+    for (const k of ["kcal", "p", "c", "f", "fibre"]) d[k] = Math.max(0, Math.round(((tot[k] || 0) - (sent[k] || 0)) * 10) / 10);
+    if (d.kcal < 1 && d.p < 0.5) { flash("Everything for this day is already in Apple Health."); return; }
+    const payload = JSON.stringify({ date, kcal: d.kcal, protein: d.p, carbs: d.c, fat: d.f, fibre: d.fibre });
+    store.day(date, { ...day, sent: { ...tot } });
+    location.href = "shortcuts://run-shortcut?name=" + encodeURIComponent("Fuel Log to Health") + "&input=text&text=" + encodeURIComponent(payload);
     render();
   }
 
@@ -513,6 +603,7 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
         <div class="row"><input type="search" id="fq" placeholder="Search your foods" value="${esc(foodQuery)}" style="flex:1" aria-label="Search your foods"><button class="btn" type="button" id="newfood">New food</button></div>
         <p class="small muted" style="margin:0">Every food you scan or enter is kept here. Suggestions on the Today tab come from this list and how often you eat each item.</p>
       </section>
+      ${Object.keys(S.meals).length ? `<section class="card"><h3>Saved meals</h3>${Object.values(S.meals).map((m) => `<div class="entry"><div><div class="nm">${esc(m.name)}</div><div class="sub">${esc(m.items.map((i) => `${i.name} ${i.grams}g`).join(", "))}</div></div><span></span><button class="x" type="button" data-mdel="${esc(m.id)}" aria-label="Delete ${esc(m.name)}">×</button></div>`).join("")}</section>` : ""}
       <section class="card">${list.length ? list.map((f) => `<div class="entry"><div><div class="nm">${esc(f.name)}${f.brand ? ` <span class="muted small">${esc(f.brand)}</span>` : ""}</div>
         <div class="sub num">per 100g: ${f.per100.kcal} kcal · P ${f.per100.p} · C ${f.per100.c} · F ${f.per100.f}${f.servingG ? ` · serving ${f.servingG}g` : ""}</div></div>
         <span class="small muted">${hab[f.id] ? hab[f.id].uses + "×" : ""}</span><button class="btn ghost small" type="button" data-edit="${esc(f.id)}">Edit</button></div>`).join("")
@@ -522,6 +613,7 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
   bind.foods = () => {
     const q = $("#fq");
     q.oninput = () => { foodQuery = q.value; const pos = q.selectionStart; render(); const n = $("#fq"); n.focus(); n.setSelectionRange(pos, pos); };
+    $("#view").querySelectorAll("[data-mdel]").forEach((b) => (b.onclick = () => { store.dropMeal(b.dataset.mdel); render(); }));
     $("#newfood").onclick = () => openSheet({ step: "form", food: blankFood(), editOnly: true });
     $("#view").querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => openSheet({ step: "form", food: { ...S.foods[b.dataset.edit] }, editOnly: true, existing: true })));
   };
@@ -530,31 +622,87 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
   function planView(t) {
     if (!S.profile) { draft = draft || { ...DEFAULT_PROFILE }; return setupCard(); }
     draft = draft || { ...S.profile, startWeight: N.latestWeight(S.weights) || S.profile.startWeight };
-    const ins = N.insights({ foods: S.foods, days: S.days, weights: S.weights, today: today(), target: t, goal: S.profile.goal });
+    const ins = N.insights({ foods: S.foods, days: S.days, weights: S.weights, today: today(), target: t, goal: S.profile.goal, health: S.health });
     const icon = { good: "✓", warn: "!", swap: "⇄", info: "i" };
     const m = t.measured;
+    const due = N.checkInDue(S.profile, S.days, today());
+    let ciHtml = "";
+    if (due) {
+      const c = lastCheckIn = N.checkIn({ profile: S.profile, weights: S.weights, days: S.days, health: S.health, today: today() });
+      const sign = (n) => (n > 0 ? "+" : n < 0 ? "−" : "±") + Math.abs(n).toFixed(2);
+      const fmtD = (d) => new Date(d + "T12:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+      ciHtml = `<section class="card"><div class="row spread"><h2>Weekly check-in</h2><span class="small muted">${fmtD(c.from)} – ${fmtD(c.to)}</span></div>
+        <div class="ci">
+          <div><span>Days logged</span><b>${c.daysLogged}/7</b></div>
+          <div><span>Trend weight</span><b>${c.weekChange == null ? "–" : sign(unit() === "lb" ? c.weekChange * 2.20462 : c.weekChange)}</b> ${unit()}</div>
+          <div><span>Calories / day</span><b>${c.avgKcal ?? "–"}</b> <span style="display:inline">of ${c.current}</span></div>
+          <div><span>Protein / day</span><b>${c.avgP ?? "–"}g</b> <span style="display:inline">of ${c.targetP}g</span></div>
+          ${c.avgSteps != null ? `<div><span>Steps / day</span><b>${c.avgSteps.toLocaleString("en-GB")}</b></div>` : ""}
+          ${c.avgSleep != null ? `<div><span>Sleep / night</span><b>${Math.floor(c.avgSleep)}h ${String(Math.round((c.avgSleep % 1) * 60)).padStart(2, "0")}m</b></div>` : ""}
+        </div>
+        <p style="margin:0">${esc(c.reason)}</p>
+        ${c.proposed ? `<div class="row"><button class="btn" type="button" id="ci-accept" style="flex:1">Change to ${c.proposed} kcal</button><button class="btn ghost" type="button" id="ci-keep">Keep ${c.current}</button></div>`
+          : `<button class="btn wide" type="button" id="ci-keep">Done</button>`}
+      </section>`;
+    }
+    const nextCi = S.profile.lastCheckIn ? Math.max(0, 7 - N.daysBetween(S.profile.lastCheckIn, today())) : null;
     return `<div class="app" style="gap:14px">
+      ${ciHtml}
       <section class="card">
         <h2>Daily targets</h2>
         <div class="preview"><div><b>${t.kcal}</b><span>kcal</span></div><div><b style="color:var(--protein)">${t.p}</b><span>protein g</span></div><div><b style="color:var(--carbs)">${t.c}</b><span>carbs g</span></div><div><b style="color:var(--fat)">${t.f}</b><span>fat g</span></div></div>
         <p class="small muted" style="margin:0">${m ? `Maintenance is <strong>${m.kcal} kcal</strong>, measured from ${m.daysLogged} logged days and your weight trend (the formula estimate was ${t.estimate}).${m.kcal < t.estimate * 0.75 ? " That's well below the formula. If some snacks, drinks or cooking oil go unlogged, the measured figure reads low." : ""}` : `Maintenance is <strong>${t.estimate} kcal</strong>, estimated from the Mifflin-St Jeor formula. After about two weeks of logging food and weight most days, it switches to your measured number.`}
-        ${S.profile.goal === "lose" ? `Target is a ${Math.abs(t.weeklyTargetKg)} kg/week loss.` : S.profile.goal === "gain" ? `Target is a ${t.weeklyTargetKg} kg/week gain.` : ""} Protein is set at ${N.GOALS[S.profile.goal].proteinPerKg} g per kg of body weight.</p>
+        ${S.profile.goal === "lose" ? `Target is a ${Math.abs(t.weeklyTargetKg)} kg/week loss.` : S.profile.goal === "gain" ? `Target is a ${t.weeklyTargetKg} kg/week gain.` : ""} Protein is set at ${N.GOALS[S.profile.goal].proteinPerKg} g per kg of body weight.
+        ${!due ? (nextCi != null ? ` Next weekly check-in ${nextCi === 0 ? "today" : nextCi === 1 ? "tomorrow" : `in ${nextCi} days`}.` : " Your first weekly check-in arrives after a week of logging.") : ""}</p>
       </section>
       <section class="card"><h2>What your log says</h2>${ins.map((i) => `<div class="insight"><span class="ic ${i.kind}" aria-hidden="true">${icon[i.kind]}</span><span>${esc(i.text)}</span></div>`).join("")}</section>
       ${sample ? `<section class="card"><div class="row spread"><h2>Ask Claude</h2><button class="btn small" type="button" id="coach" ${coachBusy ? "disabled" : ""}>${coachBusy ? "Thinking…" : coachText ? "Ask again" : "Review my last 2 weeks"}</button></div>
         ${coachText ? `<div class="coach">${esc(coachText)}</div>` : `<p class="small muted" style="margin:0">Sends your targets, daily totals, most-eaten foods and weight trend to Claude for specific suggestions.</p>`}</section>` : ""}
+      ${healthCard()}
       <h2 style="margin-top:6px">Your details</h2>
       ${profileForm(draft, "Update targets")}
       <section class="card"><h3>Backup</h3><p class="small muted" style="margin:0">${mode === "db" ? "Your log is saved to your Claude account and syncs wherever you open this page." : "Your log is saved in this browser only. Copy a backup now and then."}</p>
         <div class="row"><button class="btn ghost small" type="button" id="backup">Copy backup</button><button class="btn ghost small" type="button" id="restore">Restore from backup</button></div><div id="backup-out"></div></section>
     </div>`;
   }
+  let lastCheckIn = null;
+  function healthCard() {
+    const days = Object.keys(S.health).length;
+    return `<section class="card"><div class="row spread"><h2>Apple Health</h2><button class="btn small" type="button" id="h-import2">Import</button></div>
+      <p class="small muted" style="margin:0">${days ? `Steps, active calories and sleep for ${days} day${days > 1 ? "s" : ""} so far. They feed the weekly check-in and the patterns above.` : "Bring in steps, active calories, sleep and weight, and send what you eat to Health. Apple only lets its own apps read Health directly, so this uses two shortcuts you set up once."}</p>
+      <details class="how"><summary>Set up: Health to Fuel Log</summary><ol>
+        <li>Open the <strong>Shortcuts</strong> app, tap <strong>+</strong>, name it <code>Health to Fuel Log</code>.</li>
+        <li>Add <strong>Find Health Samples</strong>: Type <em>Steps</em>, Start Date <em>is today</em>. Add <strong>Calculate Statistics</strong>: <em>Sum</em>. Add <strong>Set Variable</strong> <code>Steps</code>.</li>
+        <li>Repeat for <em>Active Energy</em> into a variable <code>Active</code>.</li>
+        <li>Add <strong>Find Health Samples</strong>: Type <em>Sleep Analysis</em>, Start Date <em>is in the last 1 day</em>, Value <em>is not</em> In Bed and <em>is not</em> Awake. Add <strong>Get Details of Health Sample</strong>: <em>Duration</em>, then <strong>Calculate Statistics</strong>: <em>Sum</em>, into a variable <code>Sleep</code>.</li>
+        <li>Optional: <strong>Find Health Samples</strong>: Type <em>Weight</em>, sort by Start Date, Latest First, limit 1, into <code>Weight</code>.</li>
+        <li>Add a <strong>Text</strong> action with these lines, inserting the variables:<pre class="snip">Fuel Log
+steps: [Steps]
+active: [Active]
+sleep: [Sleep]
+weight: [Weight]</pre></li>
+        <li>Add <strong>Copy to Clipboard</strong>. Run it, then tap <strong>Import</strong> here.</li>
+        <li>Tip: in the Automation tab, run it daily at a fixed time, or add it to your home screen next to Fuel Log.</li>
+      </ol></details>
+      <details class="how"><summary>Set up: Fuel Log to Health</summary><ol>
+        <li>New shortcut named exactly <code>Fuel Log to Health</code>. In its settings, turn on <em>Show in Share Sheet</em> and accept <em>Text</em>.</li>
+        <li>Add <strong>Get Dictionary from Input</strong> (Shortcut Input).</li>
+        <li>Add <strong>Get Dictionary Value</strong> for key <code>kcal</code>, then <strong>Log Health Sample</strong>: Type <em>Dietary Energy</em>, Value = that dictionary value.</li>
+        <li>Repeat for <code>protein</code> (Protein), <code>carbs</code> (Carbohydrates), <code>fat</code> (Total Fat) and <code>fibre</code> (Fiber).</li>
+        <li>Back here, tap <strong>Send to Health</strong> on the Today tab. Only food logged since your last send goes, so you can send several times a day.</li>
+      </ol>${inClaude ? `<p class="small muted">Sending works from the installed Fuel Log app, not from inside Claude.</p>` : ""}</details>
+      <p class="small muted" style="margin:0">Shortcut menus vary a little between iOS versions; the action names above are the ones to search for.</p>
+    </section>`;
+  }
   bind.plan = () => {
     if (!S.profile) { bindSetup(); return; }
     bindProfile();
+    const hi2 = $("#h-import2"); if (hi2) hi2.onclick = () => openSheet({ step: "health" });
+    const acc = $("#ci-accept"); if (acc) acc.onclick = () => { store.profile({ ...S.profile, kcal: lastCheckIn.proposed, lastCheckIn: today() }); draft = null; render(); flash(`Daily target is now ${lastCheckIn.proposed} kcal.`, "good"); };
+    const keep = $("#ci-keep"); if (keep) keep.onclick = () => { store.profile({ ...S.profile, kcal: S.profile.kcal || N.targets(S.profile, S.weights, S.days, today()).kcal, lastCheckIn: today() }); draft = null; render(); };
     const c = $("#coach"); if (c) c.onclick = runCoach;
     $("#backup").onclick = () => {
-      const text = JSON.stringify({ app: "fuel-log", v: 1, profile: S.profile, weights: S.weights, foods: S.foods, days: S.days });
+      const text = JSON.stringify({ app: "fuel-log", v: 2, profile: S.profile, weights: S.weights, foods: S.foods, days: S.days, meals: S.meals, health: S.health });
       const out = $("#backup-out");
       const show = () => { out.innerHTML = `<textarea id="backup-text" rows="4" readonly></textarea>`; const ta = $("#backup-text"); ta.value = text; ta.select(); };
       try { navigator.clipboard.writeText(text).then(() => { out.innerHTML = `<p class="small" style="margin:0;color:var(--good)">Copied ${Object.keys(S.days).length} days, ${Object.keys(S.weights).length} weigh-ins and ${Object.keys(S.foods).length} foods.</p>`; }, show); } catch (e) { show(); }
@@ -570,6 +718,8 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
           for (const [d, kg] of Object.entries(b.weights || {})) store.weight(d, kg);
           for (const f of Object.values(b.foods || {})) store.food(f);
           for (const [d, day] of Object.entries(b.days || {})) store.day(d, day);
+          for (const m of Object.values(b.meals || {})) store.meal(m);
+          for (const [d, h] of Object.entries(b.health || {})) store.health(d, h);
           render();
         } catch (e) { out.insertAdjacentHTML("beforeend", `<p class="small" style="color:var(--warn)">That isn't a Fuel Log backup. Copy it again from the Backup section.</p>`); }
       };
@@ -635,9 +785,17 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
     const head = (title) => `<div class="row spread"><h2>${title}</h2><button class="x" type="button" id="sh-close" aria-label="Close">×</button></div>`;
     if (sh.step === "choose") {
       const hab = N.habits(S.days, today(), 120);
+      const q = sh.q.trim().toLowerCase();
+      const words = q.split(/\s+/).filter(Boolean);
+      const hit = (text) => words.every((w) => text.toLowerCase().includes(w));
+      const meals = Object.values(S.meals).filter((m) => !q || hit(m.name));
       const list = Object.values(S.foods)
-        .filter((f) => !sh.q || (f.name + " " + (f.brand || "")).toLowerCase().includes(sh.q.toLowerCase()))
+        .filter((f) => !q || hit(f.name + " " + (f.brand || "")))
         .sort((a, b) => (hab[b.id]?.uses || 0) - (hab[a.id]?.uses || 0)).slice(0, 30);
+      const common = q ? COMMON.filter((f) => !S.foods[f.id] && hit(f.name)).slice(0, 25) : [];
+      const mealRow = (m) => { const k = m.items.reduce((a, it) => a + (it.per100 ? N.portion({ per100: it.per100 }, it.grams).kcal : 0), 0);
+        return `<button type="button" class="result" data-meal="${esc(m.id)}"><span>${esc(m.name)} <span class="muted small">${m.items.length} items</span></span><span class="small muted num">${k} kcal</span></button>`; };
+      const foodRow = (f, attr) => `<button type="button" class="result" ${attr}="${esc(f.id)}"><span>${esc(f.name)}${f.brand ? ` <span class="muted small">${esc(f.brand)}</span>` : ""}</span><span class="small muted num">${f.per100.kcal}/100g</span></button>`;
       el.innerHTML = head("Add food") + `
         <div class="choices">
           ${liveScanOk ? `<button class="choice" type="button" id="live"><strong>Scan barcode</strong><span>Point your camera at it</span></button>` : ""}
@@ -647,15 +805,26 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
           <button class="choice" type="button" id="typebc"><strong>Type barcode</strong><span>If the photo won't read</span></button>
         </div>
         ${sh.status ? `<div class="status ${sh.statusKind || ""}" role="status">${esc(sh.status)}</div>` : ""}
-        <input type="search" id="sh-q" placeholder="Search your foods" value="${esc(sh.q)}" aria-label="Search your foods">
-        <div class="results">${list.length ? list.map((f) => `<button type="button" class="result" data-pick="${esc(f.id)}"><span>${esc(f.name)}${f.brand ? ` <span class="muted small">${esc(f.brand)}</span>` : ""}</span><span class="small muted num">${f.per100.kcal}/100g</span></button>`).join("") : `<p class="empty">${sh.q ? "No match in your foods." : "Foods you add will appear here for one-tap logging."}</p>`}</div>`;
+        <input type="search" id="sh-q" placeholder="Search foods, e.g. chicken, banana, rice" value="${esc(sh.q)}" aria-label="Search foods">
+        <div class="results">
+          ${meals.length ? `<div class="tag">Saved meals</div>` + meals.map(mealRow).join("") : ""}
+          ${list.length ? `<div class="tag">Your foods</div>` + list.map((f) => foodRow(f, "data-pick")).join("") : ""}
+          ${common.length ? `<div class="tag">Common foods · typical UK values</div>` + common.map((f) => foodRow(f, "data-common")).join("") : ""}
+          ${!meals.length && !list.length && !common.length ? `<p class="empty">${q ? "No match. Try a simpler word, or enter it manually." : "Search for unpackaged foods like chicken, eggs or rice. Foods and meals you log appear here for one-tap logging."}</p>` : ""}
+        </div>`;
       $("#bc-file").onchange = (e) => e.target.files[0] && handleBarcodePhoto(e.target.files[0]);
       const lv = $("#live"); if (lv) lv.onclick = () => { sh.step = "camera"; drawSheet(); };
       const lf = $("#lbl-file"); if (lf) lf.onchange = (e) => e.target.files[0] && readLabel(e.target.files[0], blankFood());
       $("#manual").onclick = () => { sh.step = "form"; sh.food = blankFood(); drawSheet(); };
       $("#typebc").onclick = () => { sh.step = "typebc"; drawSheet(); };
-      const q = $("#sh-q"); q.oninput = () => { sh.q = q.value; const p = q.selectionStart; drawSheet(); const n = $("#sh-q"); n.focus(); n.setSelectionRange(p, p); };
+      const qi = $("#sh-q"); qi.oninput = () => { sh.q = qi.value; const p = qi.selectionStart; drawSheet(); const n = $("#sh-q"); n.focus(); n.setSelectionRange(p, p); };
       el.querySelectorAll("[data-pick]").forEach((b) => (b.onclick = () => { sh.step = "portion"; sh.food = S.foods[b.dataset.pick]; drawSheet(); }));
+      el.querySelectorAll("[data-common]").forEach((b) => (b.onclick = () => { sh.step = "portion"; sh.food = COMMON.find((f) => f.id === b.dataset.common); drawSheet(); }));
+      el.querySelectorAll("[data-meal]").forEach((b) => (b.onclick = () => {
+        const m = S.meals[b.dataset.meal];
+        const list = m.items.map((it) => ({ food: S.foods[it.foodId] || (it.per100 && { id: it.foodId, name: it.name, per100: it.per100, brand: "", barcode: "" }), grams: it.grams, meal: sh.meal })).filter((x) => x.food);
+        dlg.close(); logMany(list); flash(`Logged ${m.name} to ${sh.meal}.`, "good");
+      }));
     } else if (sh.step === "typebc") {
       el.innerHTML = head("Type barcode") + `<form id="tbc" class="row"><input type="text" id="tbc-v" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 5000159484695" style="flex:1" aria-label="Barcode number"><button class="btn" type="submit">Look up</button></form><button class="link" type="button" id="back">Back</button>`;
       $("#tbc").onsubmit = (e) => { e.preventDefault(); const v = $("#tbc-v").value.replace(/\D/g, ""); if (v.length >= 8) lookupBarcode(v); };
@@ -667,6 +836,26 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
         <button class="link" type="button" id="back">Back</button>`;
       $("#back").onclick = () => { stopCamera(); sh.step = "choose"; drawSheet(); };
       startCamera($("#cam"));
+    } else if (sh.step === "health") {
+      el.innerHTML = head("Import from Apple Health") + `
+        <p class="small muted" style="margin:0">Run your <strong>Health to Fuel Log</strong> shortcut, come back here, then paste. Setup steps are on the Plan tab.</p>
+        ${!inClaude ? `<button class="btn wide" type="button" id="h-clip">Paste from clipboard</button>` : ""}
+        <textarea id="h-text" rows="5" placeholder="Or paste the copied text here"></textarea>
+        ${sh.status ? `<div class="status ${sh.statusKind || ""}" role="status">${esc(sh.status)}</div>` : ""}`;
+      const apply = (text) => {
+        const h = N.parseHealth(text, today());
+        if (!h) { sh.status = "That doesn't look like the shortcut's text. It should start with a line saying Fuel Log."; sh.statusKind = "warn"; drawSheet(); return; }
+        const { date, weight, ...rest } = h;
+        store.health(date, { ...(S.health[date] || {}), ...rest });
+        if (weight) store.weight(date, weight);
+        dlg.close(); render();
+        flash(`Imported ${[rest.steps != null && "steps", rest.active != null && "active calories", rest.sleepH != null && "sleep", weight && "weight"].filter(Boolean).join(", ")} for ${date === today() ? "today" : date}.`, "good");
+      };
+      const ta = $("#h-text");
+      ta.addEventListener("paste", (e) => { const t = e.clipboardData && e.clipboardData.getData("text"); if (t) { e.preventDefault(); apply(t); } });
+      ta.addEventListener("change", () => ta.value && apply(ta.value));
+      const cb = $("#h-clip");
+      if (cb) cb.onclick = () => { try { navigator.clipboard.readText().then(apply, () => { sh.status = "Couldn't read the clipboard. Long-press the box below and choose Paste."; sh.statusKind = "warn"; drawSheet(); }); } catch (e) { ta.focus(); } };
     } else if (sh.step === "busy") {
       el.innerHTML = head("Add food") + `<div class="status" role="status">${esc(sh.status)}</div>`;
     } else if (sh.step === "form") {
@@ -696,13 +885,16 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
       const f = sh.food;
       const hab = N.habits(S.days, today(), 120)[f.id];
       sh.grams = sh.grams || hab?.avgGrams || f.servingG || 100;
-      const chips = [...new Set([f.servingG, hab?.avgGrams, 100, 50, 150].filter(Boolean))];
+      const unitChips = (f.units || []).map((u) => ({ g: u.g, label: `1 ${u.label} (${u.g}g)` })).concat((f.units || []).slice(0, 1).map((u) => ({ g: u.g * 2, label: `2 × ${u.label} (${u.g * 2}g)` })));
+      const chips = unitChips.length ? unitChips.concat(hab?.avgGrams ? [{ g: hab.avgGrams, label: `${hab.avgGrams}g (usual)` }] : [], [{ g: 100, label: "100g" }])
+        : [...new Set([f.servingG, hab?.avgGrams, 100, 50, 150].filter(Boolean))].map((g) => ({ g, label: `${g}g${g === f.servingG ? " (serving)" : g === hab?.avgGrams ? " (usual)" : ""}` }));
       const n = N.portion(f, sh.grams);
       el.innerHTML = head(esc(f.name)) + `
         <div class="preview"><div><b>${n.kcal}</b><span>kcal</span></div><div><b style="color:var(--protein)">${n.p}</b><span>protein</span></div><div><b style="color:var(--carbs)">${n.c}</b><span>carbs</span></div><div><b style="color:var(--fat)">${n.f}</b><span>fat</span></div></div>
         <div class="grid2"><label class="field"><span>Amount (g or ml)</span><input type="number" id="pg" inputmode="decimal" value="${sh.grams}"></label>
           <label class="field"><span>Meal</span><select id="pm">${N.MEALS.map((m) => `<option value="${m}" ${m === sh.meal ? "selected" : ""}>${m[0].toUpperCase() + m.slice(1)}</option>`).join("")}</select></label></div>
-        <div class="chips">${chips.map((g) => `<button type="button" data-g="${g}">${g}g${g === f.servingG ? " (serving)" : g === hab?.avgGrams ? " (usual)" : ""}</button>`).join("")}</div>
+        ${f.source === "UK typical values" ? `<p class="small muted" style="margin:0">Typical UK values. If you have the pack, its label is more accurate.</p>` : ""}
+        <div class="chips">${chips.map((c) => `<button type="button" data-g="${c.g}">${esc(c.label)}</button>`).join("")}</div>
         <button class="btn wide" type="button" id="log">Log ${viewDate === today() ? "for today" : "for " + new Date(viewDate + "T12:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</button>
         <button class="link" type="button" id="editfood">Edit nutrition values</button>`;
       const pg = $("#pg");

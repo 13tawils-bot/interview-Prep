@@ -89,3 +89,83 @@ test("Open Food Facts mapping", () => {
   assert.equal(f.brand, "Twix");
   assert.equal(N.fromOpenFoodFacts("1", { nutriments: {} }), null);
 });
+
+test("Health import reads the shortcut's text in any common format", () => {
+  assert.deepEqual(N.parseHealth("Fuel Log\nsteps: 8,423\nactive: 512 kcal\nsleep: 7 hr 12 min\nweight: 83.4 kg", "2026-10-13"),
+    { date: "2026-10-13", steps: 8423, active: 512, sleepH: 7.2, weight: 83.4 });
+  const b = N.parseHealth("FUELLOG\ndate: 13/10/2026\nactive: 2100 kJ\nsleep: 25920\nweight: 13 st 2 lb", "x");
+  assert.equal(b.date, "2026-10-13");
+  assert.equal(b.active, 502);
+  assert.equal(b.sleepH, 7.2);
+  assert.equal(b.weight, 83.5);
+  assert.equal(N.parseHealth("sleep: 7", "d"), null, "needs the Fuel Log header");
+});
+
+test("plan for the rest of the day hits protein within calories", () => {
+  const today = "2026-10-13";
+  const { days } = history(today, 10, 60, 85, 0);
+  days[today] = { entries: [entry(foods.oats, 80, "breakfast")] };
+  const target = { kcal: 2000, p: 170 };
+  const { remaining, plans } = N.planRest({ foods, days, today, target, goal: "lose" });
+  assert.ok(plans.length >= 1);
+  for (const pl of plans) {
+    assert.ok(pl.kcal <= remaining.kcal * 1.05 + 30, `over: ${pl.kcal}`);
+    assert.ok(pl.items.length >= 1 && pl.items.length <= 3);
+  }
+  assert.ok(plans[0].p >= remaining.p * 0.8, `protein ${plans[0].p} of ${remaining.p}`);
+  assert.ok(plans[0].items.some((i) => i.food.id === "chicken"));
+  if (plans[1]) assert.notEqual(plans[0].lead, plans[1].lead);
+});
+
+test("check-in lowers calories when a cut stalls, but not if over-eating explains it", () => {
+  const today = "2026-10-13";
+  const p = { ...profile, kcal: 2300 };
+  const stalled = history(today, 10, 300, 85, 0.005); // flat weight, ~2.2k kcal logged, close to target
+  const c = N.checkIn({ profile: p, weights: stalled.weights, days: stalled.days, today });
+  assert.equal(c.daysLogged, 7);
+  assert.equal(c.proposed, 2150);
+  const over = history(today, 10, 400, 85, 0.005); // ~2.7k kcal logged
+  const c2 = N.checkIn({ profile: p, weights: over.weights, days: over.days, today });
+  assert.equal(c2.proposed, null);
+  assert.match(c2.reason, /Eat to the current target/);
+  const under = history(today, 20, 0, 85, 0); // ~1.4k kcal logged, flat weight, measured maintenance would read low
+  const c3 = N.checkIn({ profile: p, weights: under.weights, days: under.days, today });
+  assert.equal(c3.proposed, null);
+  assert.match(c3.reason, /isn't being logged/);
+  const sparse = N.checkIn({ profile: p, weights: {}, days: {}, today });
+  assert.equal(sparse.proposed, null);
+  assert.match(sparse.reason, /at least 4 days/);
+});
+
+test("approved target overrides the computed one", () => {
+  const t = N.targets({ ...profile, kcal: 2100 }, { "2026-10-01": 85 }, {}, "2026-10-13");
+  assert.equal(t.kcal, 2100);
+  assert.equal(t.recommended, 2370);
+  assert.ok(Math.abs(t.p * 4 + t.c * 4 + t.f * 9 - 2100) < 15);
+});
+
+test("health insights flag falling steps and eating more after short sleep", () => {
+  const today = "2026-10-13";
+  const { days, weights } = history(today, 14, 60, 85, 0);
+  const health = {};
+  for (let i = 14; i >= 1; i--) {
+    const d = N.addDays(today, -i), short = i % 2 === 0;
+    health[d] = { steps: i > 7 ? 11000 : 7000, sleepH: short ? 5.5 : 7.8 };
+    if (short) days[d].entries.push(entry(foods.crisps, 60, "snacks"));
+  }
+  const text = N.healthInsights({ days, weights, health, today }).map((i) => i.text).join("\n");
+  assert.match(text, /down 4,000 on last week/);
+  assert.match(text, /After nights under 6½ hours you ate 3\d0 kcal more/);
+});
+
+test("common foods are complete and internally consistent", () => {
+  const common = require("./commonfoods.js");
+  assert.ok(common.length > 100);
+  const ids = new Set();
+  for (const f of common) {
+    assert.ok(!ids.has(f.id), f.id); ids.add(f.id);
+    const n = f.per100, est = n.p * 4 + n.c * 4 + n.f * 9 + n.fibre * 2;
+    if (!/Lager|wine/i.test(f.name) && n.kcal > 30) assert.ok(Math.abs(est - n.kcal) / n.kcal < 0.2, f.name);
+    assert.ok(f.units.every((u) => u.g > 0 && u.label));
+  }
+});
